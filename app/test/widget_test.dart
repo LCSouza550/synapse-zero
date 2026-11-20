@@ -1,30 +1,45 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:material_ui/material_ui.dart';
-
-import 'package:synapsezero/main.dart';
+import 'package:synapsezero/presentation/splash/splash_screen.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('splash mostra o nome e avisa ao terminar', (tester) async {
+    var finished = 0;
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: MediaQuery(
+          data: const MediaQueryData(size: Size(400, 800)),
+          child: SplashScreen(playSound: false, onFinished: () => finished++),
+        ),
+      ),
+    );
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    await tester.pump(); // dispara a animação
+    await tester.pump(const Duration(milliseconds: 2800));
+    expect(find.text('SYNAPSE'), findsOneWidget);
+    expect(finished, 0);
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
+    await tester.pump(const Duration(milliseconds: 2000));
+    expect(finished, 1);
+  });
+
+  testWidgets('tocar na splash pula a animação uma única vez', (tester) async {
+    var finished = 0;
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: MediaQuery(
+          data: const MediaQueryData(size: Size(400, 800)),
+          child: SplashScreen(playSound: false, onFinished: () => finished++),
+        ),
+      ),
+    );
+
     await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.tap(find.byType(SplashScreen));
+    await tester.pump(const Duration(milliseconds: 5000));
+    expect(finished, 1);
   });
 }
