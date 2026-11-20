@@ -1,12 +1,22 @@
-# Dart / Flutter
-.dart_tool/
-.packages
+# Build e cache
 build/
-pubspec.lock
-*.iml
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Editor
 .idea/
-# Android
+.vscode/
+*.iml
+
+# Configuração local de cada máquina
 local.properties
+
+# NUNCA versionar: assinatura do Android
 *.jks
 *.keystore
 key.properties
+
+# Sistema
+.DS_Store
+Thumbs.db
