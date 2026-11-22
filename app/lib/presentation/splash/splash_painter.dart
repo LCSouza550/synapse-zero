@@ -1,338 +1,213 @@
 import 'dart:math' as math;
-import 'dart:ui' as ui;
 
-import 'package:flutter/widgets.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:synapsezero/presentation/splash/splash_timeline.dart';
+import 'package:synapsezero/presentation/theme/synapse_palette.dart';
 
-import '../theme/app_colors.dart';
-import 'splash_timeline.dart';
-
-/// Desenha o fundo quadriculado (28 px), igual ao da `.splash` do protótipo.
-class SplashGridPainter extends CustomPainter {
-  const SplashGridPainter();
+/// Grade de fundo. Estática: desenhada uma vez, isolada em RepaintBoundary.
+class GridPainter extends CustomPainter {
+  const GridPainter();
 
   @override
   void paint(Canvas canvas, Size size) {
-    canvas.drawRect(Offset.zero & size, Paint()..color = AppColors.bg);
-    final line = Paint()
-      ..color = AppColors.grid
+    final paint = Paint()
+      ..color = SynapsePalette.gridLine
       ..strokeWidth = 1;
-    for (double x = 0.5; x < size.width; x += 28) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), line);
+    const step = 32.0;
+    for (var x = 0.0; x <= size.width; x += step) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
     }
-    for (double y = 0.5; y < size.height; y += 28) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), line);
+    for (var y = 0.0; y <= size.height; y += step) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
     }
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant GridPainter oldDelegate) => false;
 }
 
-/// Desenha feixe, capacitor, halo e receptor em um único relógio ([clock]).
-///
-/// As coordenadas usam o mesmo `viewBox="0 0 320 80"` do SVG do protótipo; o
-/// canvas é escalado para a largura disponível.
+class _Geometry {
+  _Geometry(Size size)
+      : startX = size.width * 0.08,
+        endX = size.width * 0.92,
+        y = size.height * 0.46,
+        radius = size.width * 0.13,
+        capX = size.width * (0.08 + 0.84 * SplashTimeline.capacitorAt);
+
+  final double startX;
+  final double endX;
+  final double y;
+  final double radius;
+  final double capX;
+}
+
+/// Desenha feixe, halo e capacitor. Repinta a cada frame do controller.
 class SplashPainter extends CustomPainter {
-  SplashPainter(this.clock) : super(repaint: clock);
+  SplashPainter({required this.animation, required this.timeline})
+      : super(repaint: animation);
 
-  final Animation<double> clock;
+  final Animation<double> animation;
+  final SplashTimeline timeline;
 
-  static const double _vbWidth = 320;
-  static const double _vbHeight = 80;
-  static const Offset _capCenter = Offset(156, 40);
-  static const Offset _dstCenter = Offset(309, 40);
+  final Paint _track = Paint()
+    ..color = SynapsePalette.cyan.withValues(alpha: 0.14)
+    ..strokeWidth = 2
+    ..strokeCap = StrokeCap.round;
 
-  /// Razão altura/largura do desenho.
-  static const double aspect = _vbHeight / _vbWidth;
+  final Paint _beamGlow = Paint()
+    ..color = SynapsePalette.cyan.withValues(alpha: 0.55)
+    ..strokeWidth = 16
+    ..strokeCap = StrokeCap.round
+    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
 
-  // Traçado tracejado do anel médio (5 de traço, 3,5 de vão), calculado uma vez.
-  static final Path _dashedRing = _buildDashedRing();
+  final Paint _beamMid = Paint()
+    ..color = SynapsePalette.cyan
+    ..strokeWidth = 4
+    ..strokeCap = StrokeCap.round;
 
-  static Path _buildDashedRing() {
-    final source = Path()
-      ..addOval(Rect.fromCircle(center: _capCenter, radius: 20));
-    final out = Path();
-    for (final metric in source.computeMetrics()) {
-      double d = 0;
-      while (d < metric.length) {
-        out.addPath(metric.extractPath(d, math.min(d + 5, metric.length)), Offset.zero);
-        d += 8.5;
-      }
-    }
-    return out;
-  }
+  final Paint _beamCore = Paint()
+    ..color = SynapsePalette.cyanCore
+    ..strokeWidth = 1.6
+    ..strokeCap = StrokeCap.round;
+
+  final Paint _headGlow = Paint()
+    ..color = SynapsePalette.cyan.withValues(alpha: 0.8)
+    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
+
+  final Paint _headCore = Paint()..color = SynapsePalette.cyanCore;
+
+  final Paint _haloFill = Paint();
+
+  final Paint _haloRing = Paint()
+    ..style = PaintingStyle.stroke
+    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
 
   @override
   void paint(Canvas canvas, Size size) {
-    final t = clock.value * SplashTimeline.total;
-    canvas.save();
-    canvas.scale(size.width / _vbWidth);
+    final t = animation.value;
+    final geometry = _Geometry(size);
 
-    _paintWires(canvas);
-    _paintSource(canvas);
-    _paintBeam(canvas, 18, 129, SplashTimeline.beamAStart, SplashTimeline.beamADur, t);
-    _paintBeam(canvas, 183, 297, SplashTimeline.beamBStart, SplashTimeline.beamBDur, t);
-    _paintHalo(canvas, t);
-    _paintCapacitor(canvas, t);
-    _paintReceiver(canvas, t);
-    _paintHead(canvas, 18, 129, SplashTimeline.beamAStart, SplashTimeline.beamADur, t);
-    _paintHead(canvas, 183, 297, SplashTimeline.beamBStart, SplashTimeline.beamBDur, t);
-
-    canvas.restore();
+    _paintTrack(canvas, geometry);
+    _paintBeam(canvas, geometry, timeline.beamProgress(t));
+    _paintHalo(canvas, geometry, t);
+    _paintCapacitor(canvas, geometry, t);
   }
 
-  // ---------------------------------------------------------------- fios
-  void _paintWires(Canvas canvas) {
-    final p = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3
-      ..strokeCap = StrokeCap.round
-      ..color = AppColors.wireOff.withValues(alpha: 0.45);
-    canvas.drawLine(const Offset(18, 40), const Offset(129, 40), p);
-    canvas.drawLine(const Offset(183, 40), const Offset(297, 40), p);
+  void _paintTrack(Canvas canvas, _Geometry g) {
+    canvas.drawLine(Offset(g.startX, g.y), Offset(g.endX, g.y), _track);
   }
 
-  void _paintSource(Canvas canvas) {
-    const c = Offset(12, 40);
-    canvas.drawCircle(
-      c,
-      6,
-      Paint()
-        ..color = AppColors.alfaGlow
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
-    );
-    canvas.drawCircle(c, 6, Paint()..color = AppColors.alfa);
+  void _paintBeam(Canvas canvas, _Geometry g, double progress) {
+    if (progress <= 0) return;
+    final start = Offset(g.startX, g.y);
+    final head = Offset(g.startX + (g.endX - g.startX) * progress, g.y);
+
+    canvas.drawLine(start, head, _beamGlow);
+    canvas.drawLine(start, head, _beamMid);
+    canvas.drawLine(start, head, _beamCore);
+    canvas.drawCircle(head, 14, _headGlow);
+    canvas.drawCircle(head, 4.5, _headCore);
   }
 
-  // --------------------------------------------------------------- feixe
-  /// Feixe liso, em velocidade constante.
-  void _paintBeam(Canvas canvas, double x0, double x1, double start, double dur, double t) {
-    final p = SplashTimeline.seg(t, start, dur);
-    if (p <= 0) return;
-    final end = Offset(x0 + (x1 - x0) * p, 40);
-    final start0 = Offset(x0, 40);
-    canvas.drawLine(
-      start0,
-      end,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3
-        ..strokeCap = StrokeCap.round
-        ..color = AppColors.alfaGlow
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2),
-    );
-    canvas.drawLine(
-      start0,
-      end,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3
-        ..strokeCap = StrokeCap.round
-        ..color = AppColors.alfa,
-    );
-  }
+  void _paintHalo(Canvas canvas, _Geometry g, double t) {
+    final center = Offset(g.capX, g.y);
+    final glow = timeline.glow(t);
 
-  /// Ponta luminosa que acompanha o feixe e some nos últimos 8% do trecho.
-  void _paintHead(Canvas canvas, double x0, double x1, double start, double dur, double t) {
-    if (t < start || t > start + dur) return;
-    final p = SplashTimeline.seg(t, start, dur);
-    final opacity = p < 0.92 ? 1.0 : 1.0 - (p - 0.92) / 0.08;
-    final c = Offset(x0 + (x1 - x0) * p, 40);
-    canvas.drawCircle(
-      c,
-      3.4,
-      Paint()
-        ..color = AppColors.alfaGlow.withValues(alpha: 0.55 * opacity)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
-    );
-    canvas.drawCircle(
-      c,
-      3.4,
-      Paint()
-        ..color = AppColors.alfa.withValues(alpha: opacity)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2),
-    );
-    canvas.drawCircle(c, 3.4, Paint()..color = AppColors.flash.withValues(alpha: opacity));
-  }
-
-  // ---------------------------------------------------------------- halo
-  /// Halo largo: dispara ao fim do giro, esmaece e permanece aceso até o fim.
-  void _paintHalo(Canvas canvas, double t) {
-    if (t < SplashTimeline.glowStart) return;
-    final p = SplashTimeline.seg(t, SplashTimeline.glowStart, SplashTimeline.haloDur);
-    double opacity;
-    double scale;
-    if (p < 0.08) {
-      final u = SplashTimeline.easeOut.transform(p / 0.08);
-      opacity = u;
-      scale = 0.4 + (1.3 - 0.4) * u;
-    } else {
-      final u = SplashTimeline.easeOut.transform((p - 0.08) / 0.92);
-      opacity = 1 + (0.55 - 1) * u;
-      scale = 1.3 + (1.0 - 1.3) * u;
+    if (glow > 0) {
+      final radius = g.radius * 2.6;
+      _haloFill.shader = RadialGradient(
+        colors: [
+          SynapsePalette.amber.withValues(alpha: 0.55 * glow),
+          SynapsePalette.amber.withValues(alpha: 0),
+        ],
+      ).createShader(Rect.fromCircle(center: center, radius: radius));
+      canvas.drawCircle(center, radius, _haloFill);
     }
-    final radius = 115 * scale;
-    const base = AppColors.alfa;
-    final shader = ui.Gradient.radial(
-      _capCenter,
-      radius,
-      [
-        base.withValues(alpha: 0.9 * opacity),
-        base.withValues(alpha: 0.5 * opacity),
-        base.withValues(alpha: 0.17 * opacity),
-        base.withValues(alpha: 0.0),
-      ],
-      const [0.0, 0.3, 0.65, 1.0],
-    );
-    canvas.drawCircle(_capCenter, radius, Paint()..shader = shader);
+
+    for (final delay in SplashTimeline.haloDelays) {
+      final k = timeline.haloProgress(t, delay: delay);
+      if (k <= 0 || k >= 1) continue;
+      _haloRing
+        ..color = SynapsePalette.amber.withValues(alpha: 0.8 * (1 - k))
+        ..strokeWidth = 3 + 6 * (1 - k);
+      canvas.drawCircle(center, g.radius * (1.1 + 2.6 * k), _haloRing);
+    }
   }
 
-  // ----------------------------------------------------------- capacitor
-  void _paintCapacitor(Canvas canvas, double t) {
-    final rotP = SplashTimeline.seg(t, SplashTimeline.rotStart, SplashTimeline.rotDur);
-    final angle = (math.pi / 2) * (1 - SplashTimeline.rotCurve.transform(rotP));
-
-    // Cor: desligado -> "acordado" (1,4 s) -> aceso (1,85 s), como `capwake`/`caplit`.
-    final wake = Color.lerp(
-      AppColors.wireOff,
-      AppColors.wake,
-      SplashTimeline.ease.transform(SplashTimeline.seg(t, SplashTimeline.rotStart, 0.15)),
+  void _paintCapacitor(Canvas canvas, _Geometry g, double t) {
+    final glow = timeline.glow(t);
+    final angle = timeline.spinTurns(t) * 2 * math.pi;
+    final crisp = Color.lerp(
+      SynapsePalette.capacitorIdle,
+      SynapsePalette.amberCore,
+      glow,
     )!;
-    final q = SplashTimeline.seg(t, SplashTimeline.glowStart, SplashTimeline.litDur);
-    final color = t < SplashTimeline.glowStart
-        ? wake
-        : SplashTimeline.lit(AppColors.wake, q, AppColors.flash, AppColors.alfa);
 
     canvas.save();
-    canvas.translate(_capCenter.dx, _capCenter.dy);
+    canvas.translate(g.capX, g.y);
+    // Gira o conjunto inteiro (anéis externos, internos e núcleo).
     canvas.rotate(angle);
-    canvas.translate(-_capCenter.dx, -_capCenter.dy);
-
-    // Brilho (equivale ao drop-shadow `capglow`): pico em 10% e repouso em 100%.
-    if (t >= SplashTimeline.glowStart) {
-      final g = SplashTimeline.seg(t, SplashTimeline.glowStart, SplashTimeline.capGlowDur);
-      double outerSigma, outerAlpha, innerSigma;
-      Color innerColor;
-      double innerAlpha;
-      if (g < 0.10) {
-        final u = SplashTimeline.ease.transform(g / 0.10);
-        outerSigma = 6 * u;
-        outerAlpha = u;
-        innerSigma = 1.5 * u;
-        innerColor = AppColors.flash;
-        innerAlpha = u;
-      } else {
-        final u = SplashTimeline.ease.transform((g - 0.10) / 0.90);
-        outerSigma = 6 + (3.5 - 6) * u;
-        outerAlpha = 1 + (0.6 - 1) * u;
-        innerSigma = 1.5 + (1.0 - 1.5) * u;
-        innerColor = Color.lerp(AppColors.flash, AppColors.alfa, u)!;
-        innerAlpha = 1 + (0.7 - 1) * u;
-      }
-      if (outerSigma > 0.05) {
-        _capShapes(canvas, AppColors.alfa.withValues(alpha: outerAlpha),
-            blur: MaskFilter.blur(BlurStyle.normal, outerSigma), fills: false);
-        _capShapes(canvas, innerColor.withValues(alpha: innerAlpha),
-            blur: MaskFilter.blur(BlurStyle.normal, innerSigma), fills: false);
-      }
+    if (glow > 0.01) {
+      _drawRings(
+        canvas,
+        g.radius,
+        color: SynapsePalette.amber.withValues(alpha: 0.9 * glow),
+        widthScale: 2.2,
+        blur: 14,
+      );
     }
-
-    _capShapes(canvas, color, fills: true);
+    _drawRings(canvas, g.radius, color: crisp, widthScale: 1);
     canvas.restore();
   }
 
-  /// Anéis, marcas, terminais e condutor — tudo gira junto.
-  void _capShapes(Canvas canvas, Color color, {MaskFilter? blur, required bool fills}) {
-    Paint stroke(double width, {bool round = false}) => Paint()
+  void _drawRings(
+    Canvas canvas,
+    double radius, {
+    required Color color,
+    required double widthScale,
+    double blur = 0,
+  }) {
+    final paint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = width
-      ..strokeCap = round ? StrokeCap.round : StrokeCap.butt
-      ..color = color
-      ..maskFilter = blur;
-
-    // Anel externo e anel tracejado
-    canvas.drawCircle(_capCenter, 27, stroke(2.5));
-    canvas.drawPath(_dashedRing, stroke(1.6));
-
-    // Marcas a 30°, 60°, 120°, 150°, 210°, 240°, 300° e 330°
-    final tick = stroke(1.6, round: true);
-    for (final deg in const [30, 60, 120, 150, 210, 240, 300, 330]) {
-      canvas.save();
-      canvas.translate(_capCenter.dx, _capCenter.dy);
-      canvas.rotate(deg * math.pi / 180);
-      canvas.drawLine(const Offset(0, -33), const Offset(0, -29), tick);
-      canvas.restore();
+      ..strokeCap = StrokeCap.round
+      ..color = color;
+    if (blur > 0) {
+      paint.maskFilter = MaskFilter.blur(BlurStyle.normal, blur);
     }
 
-    // Índice (triângulo no topo)
-    final index = Path()
-      ..moveTo(152, 4.5)
-      ..lineTo(160, 4.5)
-      ..lineTo(156, 11)
-      ..close();
-    canvas.drawPath(
-      index,
-      Paint()
-        ..style = PaintingStyle.fill
-        ..color = color
-        ..maskFilter = blur,
-    );
+    // Anel externo: duas metades, com aberturas alinhadas ao feixe (0 e π).
+    paint.strokeWidth = 6 * widthScale;
+    final outer = Rect.fromCircle(center: Offset.zero, radius: radius);
+    const gap = 0.55;
+    canvas.drawArc(outer, gap / 2, math.pi - gap, false, paint);
+    canvas.drawArc(outer, math.pi + gap / 2, math.pi - gap, false, paint);
 
-    // Condutor, terminais e eixo central
-    canvas.drawLine(const Offset(129, 40), const Offset(183, 40), stroke(3, round: true));
-    for (final c in const [Offset(129, 40), Offset(183, 40)]) {
-      if (fills) canvas.drawCircle(c, 3.4, Paint()..color = AppColors.bg);
-      canvas.drawCircle(c, 3.4, stroke(2));
+    // Anel interno com marcas diagonais.
+    paint.strokeWidth = 2.5 * widthScale;
+    canvas.drawCircle(Offset.zero, radius * 0.66, paint);
+    for (var i = 0; i < 4; i++) {
+      final a = i * math.pi / 2 + math.pi / 4;
+      canvas.drawLine(
+        Offset.fromDirection(a, radius * 0.66),
+        Offset.fromDirection(a, radius * 0.84),
+        paint,
+      );
     }
-    if (fills) canvas.drawCircle(_capCenter, 7, Paint()..color = AppColors.bg);
-    canvas.drawCircle(_capCenter, 7, stroke(2));
-  }
 
-  // ------------------------------------------------------------ receptor
-  void _paintReceiver(Canvas canvas, double t) {
-    // Anel do receptor acende como o capacitor.
-    final q = SplashTimeline.seg(t, SplashTimeline.dstStart, SplashTimeline.dstLitDur);
-    final ring = t < SplashTimeline.dstStart
-        ? AppColors.wireOff
-        : SplashTimeline.lit(AppColors.wireOff, q, AppColors.flash, AppColors.alfa);
-    canvas.drawCircle(
-      _dstCenter,
-      10,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3
-        ..color = ring,
+    // Marca de referência no topo: torna a volta completa visível.
+    paint.strokeWidth = 4 * widthScale;
+    canvas.drawLine(
+      Offset.fromDirection(-math.pi / 2, radius * 0.78),
+      Offset.fromDirection(-math.pi / 2, radius * 1.18),
+      paint,
     );
 
-    if (t < SplashTimeline.dstStart) return;
-
-    // Núcleo: acende crescendo
-    final ig = SplashTimeline.easeOut.transform(
-        SplashTimeline.seg(t, SplashTimeline.dstStart, SplashTimeline.igniteDur));
-    final coreRadius = 5 * (0.2 + 0.8 * ig);
-    canvas.drawCircle(
-      _dstCenter,
-      coreRadius,
-      Paint()
-        ..color = AppColors.alfaGlow.withValues(alpha: 0.55 * ig)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
-    );
-    canvas.drawCircle(_dstCenter, coreRadius, Paint()..color = AppColors.alfa.withValues(alpha: ig));
-
-    // Onda que se expande e some
-    final pg = SplashTimeline.easeOut.transform(
-        SplashTimeline.seg(t, SplashTimeline.dstStart, SplashTimeline.pingDur));
-    final scale = 1 + 1.6 * pg;
-    canvas.drawCircle(
-      _dstCenter,
-      10 * scale,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2 * scale
-        ..color = AppColors.alfa.withValues(alpha: 0.7 * (1 - pg)),
-    );
+    // Núcleo.
+    paint.style = PaintingStyle.fill;
+    canvas.drawCircle(Offset.zero, radius * 0.16, paint);
   }
 
   @override
-  bool shouldRepaint(covariant SplashPainter oldDelegate) => oldDelegate.clock != clock;
+  bool shouldRepaint(covariant SplashPainter oldDelegate) =>
+      oldDelegate.animation != animation || oldDelegate.timeline != timeline;
 }

@@ -1,24 +1,18 @@
-import 'package:flutter/widgets.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:synapsezero/presentation/theme/synapse_palette.dart';
 
-import '../theme/app_colors.dart';
-
-/// Tela provisória exibida depois da splash, até a tela principal existir.
+/// Substituída pela tela da Trilha Neural em etapa futura.
 class HomePlaceholder extends StatelessWidget {
   const HomePlaceholder({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const ColoredBox(
-      color: AppColors.bg,
-      child: Center(
+    return const Scaffold(
+      backgroundColor: SynapsePalette.background,
+      body: Center(
         child: Text(
           'Tela principal em construção',
-          textDirection: TextDirection.ltr,
-          style: TextStyle(
-            color: AppColors.text,
-            fontSize: 16,
-            decoration: TextDecoration.none,
-          ),
+          style: TextStyle(color: SynapsePalette.textPrimary),
         ),
       ),
     );
