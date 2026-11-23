@@ -5,95 +5,125 @@ double _unit(double value) => value < 0 ? 0 : (value > 1 ? 1 : value);
 /// Linha do tempo da splash. Lógica pura: sem desenho, fácil de testar.
 ///
 /// `t` é o tempo normalizado (0..1) de um único AnimationController.
-/// O capacitor e o nome reagem à POSIÇÃO do feixe, não a tempos fixos,
-/// o que mantém tudo sincronizado e sem pausas.
+///
+/// Sequência:
+/// 1. O feixe percorre a linha até tocar o conector.
+/// 2. No contato, o conector gira e a barra interna se alinha ao feixe:
+///    a conexão é estabelecida.
+/// 3. No instante da conexão, o conector emite um glow que cai e permanece.
+/// 4. O feixe passa pelo conector e segue até o fim; o nome surge e termina
+///    junto com o feixe. Depois há uma pausa curta.
+///
+/// **Velocidade constante:** o feixe anda sempre com a mesma velocidade
+/// (progresso linear no tempo). A única parada é o giro do conector.
+///
+/// As frações de layout abaixo são a fonte única: o painter as usa para
+/// desenhar e esta classe as usa para calcular os tempos.
 class SplashTimeline {
-  SplashTimeline()
-      : spinStart = _timeAt(capacitorAt - ringHalfSpan),
-        spinEnd = _timeAt(capacitorAt + ringHalfSpan);
+  const SplashTimeline();
 
   static const Duration duration = Duration(milliseconds: 4200);
 
-  /// Janela (fração de t) em que o feixe se move; o restante é a pausa final.
-  static const double beamStart = 0.04;
-  static const double beamEnd = 0.90;
+  // --- Layout (frações da largura da tela) ---
+  static const double startFrac = 0.08;
+  static const double endFrac = 0.92;
+  static const double radiusFrac = 0.104;
+  static const double centerFrac = 0.5;
 
-  /// Posição do capacitor no percurso (0..1).
-  static const double capacitorAt = 0.42;
+  /// Posição (0..1 no percurso) em que o feixe toca o conector.
+  static const double entryAt =
+      (centerFrac - radiusFrac - startFrac) / (endFrac - startFrac);
 
-  /// Metade do diâmetro do capacitor em fração do percurso.
-  /// Vem de: raio (13% da largura) ÷ percurso (84% da largura) ≈ 0,155.
-  /// Se mudar o raio ou o percurso no painter, atualize este valor.
-  static const double ringHalfSpan = 0.155;
+  /// Posição (0..1 no percurso) em que o feixe deixa o conector.
+  static const double exitAt =
+      (centerFrac + radiusFrac - startFrac) / (endFrac - startFrac);
 
-  /// O nome começa a surgir quando o feixe passa desta posição.
-  static const double titleStartProgress = 0.62;
+  // --- Tempo (frações de t) ---
+  static const double approachStart = 0.04;
+  static const double beamEnd = 0.88;
+
+  /// Duração do giro (a única parada do feixe).
+  static const double spinSpan = 0.16;
+
+  /// Tempo gasto para percorrer o percurso inteiro, sem contar o giro.
+  static const double moveSpan = beamEnd - approachStart - spinSpan;
+
+  /// O feixe toca o conector e o giro começa.
+  static const double contact = approachStart + entryAt * moveSpan;
+
+  /// O giro termina: conexão estabelecida.
+  static const double connected = contact + spinSpan;
+
+  /// Janela do estalo de brilho logo após a conexão.
+  static const double glowSwell = 0.03;
+
+  /// Instante em que o brilho atinge o pico.
+  static const double glowPeak = connected + glowSwell;
+
+  /// Brilho do conector durante o giro, antes da conexão (0..1).
+  static const double chargeGlow = 0.25;
 
   /// Brilho que permanece aceso depois do pico (0..1).
   static const double sustainedGlow = 0.38;
 
   /// Duração da queda do brilho (fração de t).
-  static const double glowDecay = 0.20;
+  static const double glowDecay = 0.18;
 
-  /// Duração da propagação do halo (fração de t) e atraso de cada onda.
-  static const double haloSpan = 0.32;
-  static const List<double> haloDelays = [0.0, 0.07];
+  /// Duração da expansão do glow emitido pela conexão (fração de t).
+  static const double pulseSpan = 0.30;
 
-  /// Instantes (fração de t) em que o feixe entra e sai do capacitor.
-  final double spinStart;
-  final double spinEnd;
-
-  static double _beamAt(double t) {
-    final k = _unit((t - beamStart) / (beamEnd - beamStart));
-    return Curves.easeInOutSine.transform(k);
+  /// Posição do feixe no percurso (0..1). Velocidade constante; só pára
+  /// no conector, durante o giro.
+  double beamProgress(double t) {
+    if (t <= approachStart) return 0;
+    if (t < contact) return (t - approachStart) / moveSpan;
+    if (t < connected) return entryAt;
+    return _unit(entryAt + (t - connected) / moveSpan);
   }
 
-  /// Instante em que o feixe atinge [progress] (busca binária; _beamAt é monotônica).
-  static double _timeAt(double progress) {
-    var low = beamStart;
-    var high = beamEnd;
-    for (var i = 0; i < 40; i++) {
-      final mid = (low + high) / 2;
-      if (_beamAt(mid) < progress) {
-        low = mid;
-      } else {
-        high = mid;
-      }
-    }
-    return high;
-  }
-
-  /// Posição do feixe no percurso (0..1).
-  double beamProgress(double t) => _beamAt(t);
-
-  /// Voltas completas do capacitor (0..1). Gira enquanto o feixe o atravessa.
+  /// Giro do conector (0..1), do contato até a conexão.
   double spinTurns(double t) {
-    final k = _unit((t - spinStart) / (spinEnd - spinStart));
+    if (t >= connected) return 1;
+    final k = _unit((t - contact) / spinSpan);
     return Curves.easeInOutCubic.transform(k);
   }
 
-  /// Brilho do capacitor: sobe até o pico ao completar o giro,
-  /// cai e se mantém em [sustainedGlow].
+  /// Quanto a barra interna já está conectada ao feixe (0..1).
+  /// Acende no fim do giro, quando ela fica alinhada.
+  double link(double t) {
+    if (t >= connected) return 1;
+    final k = _unit((t - (connected - glowSwell)) / glowSwell);
+    return Curves.easeOut.transform(k);
+  }
+
+  /// Carga no ponto de contato durante o giro (0..1).
+  double charge(double t) => _unit((t - contact) / spinSpan);
+
+  /// Brilho do conector: sobe de leve durante o giro, estoura ao conectar,
+  /// cai e permanece em [sustainedGlow].
   double glow(double t) {
-    if (t <= spinStart) return 0;
-    if (t < spinEnd) {
-      final k = (t - spinStart) / (spinEnd - spinStart);
-      return Curves.easeInQuart.transform(k);
+    if (t <= contact) return 0;
+    if (t < connected) {
+      return chargeGlow * Curves.easeIn.transform(charge(t));
     }
-    final k = _unit((t - spinEnd) / glowDecay);
+    if (t < glowPeak) {
+      final k = (t - connected) / glowSwell;
+      return chargeGlow + (1.0 - chargeGlow) * Curves.easeOut.transform(k);
+    }
+    final k = _unit((t - glowPeak) / glowDecay);
     return 1.0 - (1.0 - sustainedGlow) * Curves.easeOutCubic.transform(k);
   }
 
-  /// Progresso (0..1) de uma onda do halo, a partir do fim do giro.
-  double haloProgress(double t, {double delay = 0}) {
-    final k = _unit((t - spinEnd - delay) / haloSpan);
+  /// Expansão (0..1) do glow emitido no instante da conexão.
+  double pulse(double t) {
+    final k = _unit((t - connected) / pulseSpan);
     return Curves.easeOutCubic.transform(k);
   }
 
-  /// Opacidade do nome: depende da posição do feixe e chega a 1 quando ele termina.
+  /// Opacidade do nome: surge depois que o feixe deixa o conector e chega
+  /// a 1 quando o feixe termina.
   double titleOpacity(double t) {
-    final p = beamProgress(t);
-    final k = _unit((p - titleStartProgress) / (1.0 - titleStartProgress));
+    final k = _unit((beamProgress(t) - exitAt) / (1.0 - exitAt));
     return Curves.easeOut.transform(k);
   }
 }

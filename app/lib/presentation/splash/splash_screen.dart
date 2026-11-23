@@ -81,7 +81,7 @@ class _SplashScreenState extends State<SplashScreen>
             ),
           ),
           Align(
-            alignment: const Alignment(0, 0.16),
+            alignment: const Alignment(0, 0.30),
             child: AnimatedBuilder(
               animation: _controller,
               builder: (context, child) => Opacity(

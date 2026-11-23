@@ -1,4 +1,4 @@
-"""Gera assets/audio/splash.wav a partir da trilha do protótipo (reference/synapse-zero-prototype.html).
+"""Gera assets/audio/splash.wav, sincronizado com a SplashTimeline (conexão do conector).
 
 Uso (dentro da pasta app):  python tool/gen_splash_audio.py
 Requer: Python 3 + numpy.
@@ -73,24 +73,43 @@ def hum(freq, start, end, vol):
     add(start, end + 0.05, "sine", lambda t: np.full_like(t, freq), lambda t: lin_env(pts, t))
 
 
-# --- mesma partitura do protótipo (função Snd.splash, off = 0) ---
-sweep(190, 540, 0.2, 1.2, "sine", 0.07)
+# --- partitura sincronizada com SplashTimeline (app/lib/presentation/splash/splash_timeline.dart) ---
+# Mantenha estas constantes iguais às da timeline (fração de t x 4,2 s).
+TOTAL = 4.2
+START_FRAC, END_FRAC, RADIUS_FRAC, CENTER_FRAC = 0.08, 0.92, 0.13, 0.5
+APPROACH_START, BEAM_END, SPIN_SPAN, GLOW_SWELL = 0.04, 0.88, 0.16, 0.03
+entry_at = (CENTER_FRAC - RADIUS_FRAC - START_FRAC) / (END_FRAC - START_FRAC)
+exit_at = (CENTER_FRAC + RADIUS_FRAC - START_FRAC) / (END_FRAC - START_FRAC)
+move_span = BEAM_END - APPROACH_START - SPIN_SPAN
+contact = (APPROACH_START + entry_at * move_span) * TOTAL
+connected = (APPROACH_START + entry_at * move_span + SPIN_SPAN) * TOTAL
+beam_start = APPROACH_START * TOTAL
+beam_end = BEAM_END * TOTAL
+exit_time = (APPROACH_START + entry_at * move_span + SPIN_SPAN + (exit_at - entry_at) * move_span) * TOTAL
+print(f"contato {contact:.3f}s | conexão {connected:.3f}s | saída do conector {exit_time:.3f}s | fim do feixe {beam_end:.3f}s")
 
-note(330, 1.4, 0.2, "triangle", 0.12)
-note(495, 1.4, 0.2, "sine", 0.06)
-sweep(240, 700, 1.4, 0.45, "triangle", 0.09)
+# 1) Feixe se aproxima: varredura ascendente até o contato.
+sweep(190, 540, beam_start, contact - beam_start, "sine", 0.07)
 
-note(1500, 1.85, 0.03, "square", 0.05)
+# 2) Contato: toque seco; giro do conector: varredura que sobe (carga).
+note(330, contact, 0.2, "triangle", 0.12)
+note(495, contact, 0.2, "sine", 0.06)
+sweep(240, 700, contact, connected - contact, "triangle", 0.09)
+
+# 3) Conexão: estalo + acorde + batida grave.
+note(1500, connected, 0.03, "square", 0.05)
 for i, f in enumerate([523.25, 784, 1046.5, 1568]):
-    note(f, 1.85, 1.0 - i * 0.1, "sine", 0.15 - i * 0.015)
-sweep(420, 1000, 1.85, 1.25, "sine", 0.06)
+    note(f, connected, 1.0 - i * 0.1, "sine", 0.15 - i * 0.015)
+note(98, connected, 0.45, "sine", 0.12)
 
-hum(261.63, 1.85, 3.95, 0.05)
-hum(392, 1.85, 3.95, 0.032)
+# 4) Feixe atravessa e segue até o fim; zumbido de energia.
+sweep(420, 1000, connected, beam_end - connected, "sine", 0.06)
+hum(261.63, connected, beam_end + 0.25, 0.05)
+hum(392, connected, beam_end + 0.25, 0.032)
 
+# 5) Nome completo: arpejo final junto com o fim do feixe.
 for i, f in enumerate([784, 1047, 1319, 1568]):
-    note(f, 3.1 + i * 0.08, 0.6, "triangle", 0.1)
-note(98, 3.1, 0.45, "sine", 0.12)
+    note(f, beam_end - 0.25 + i * 0.08, 0.6, "triangle", 0.1)
 
 mix *= MASTER
 peak = float(np.max(np.abs(mix)))

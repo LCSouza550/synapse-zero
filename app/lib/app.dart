@@ -1,4 +1,6 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:synapsezero/application/audio/asset_splash_audio.dart';
+import 'package:synapsezero/application/audio/splash_audio.dart';
 import 'package:synapsezero/presentation/home/home_placeholder.dart';
 import 'package:synapsezero/presentation/splash/splash_screen.dart';
 import 'package:synapsezero/presentation/theme/synapse_palette.dart';
@@ -31,6 +33,15 @@ class _Root extends StatefulWidget {
 class _RootState extends State<_Root> {
   bool _splashDone = false;
 
+  /// Som ativo por padrão. O áudio pertence a este widget, que o libera.
+  final SplashAudio _audio = AssetSplashAudio();
+
+  @override
+  void dispose() {
+    _audio.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedSwitcher(
@@ -39,6 +50,7 @@ class _RootState extends State<_Root> {
           ? const HomePlaceholder(key: ValueKey('home'))
           : SplashScreen(
               key: const ValueKey('splash'),
+              audio: _audio,
               onFinished: () => setState(() => _splashDone = true),
             ),
     );
