@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:synapsezero/application/audio/splash_audio.dart';
 import 'package:synapsezero/presentation/splash/splash_painter.dart';
 import 'package:synapsezero/presentation/splash/splash_timeline.dart';
+import 'package:synapsezero/presentation/theme/app_typography.dart';
 import 'package:synapsezero/presentation/theme/synapse_palette.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -102,19 +103,16 @@ class _Title extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.symmetric(horizontal: 24),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
       child: FittedBox(
         fit: BoxFit.scaleDown,
         child: Text(
           'SYNAPSE // ZERO',
           textAlign: TextAlign.center,
-          style: TextStyle(
+          style: AppTextStyles.splashTitle.copyWith(
             color: SynapsePalette.textPrimary,
-            fontSize: 26,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 6,
-            shadows: [Shadow(color: SynapsePalette.cyan, blurRadius: 18)],
+            shadows: const [Shadow(color: SynapsePalette.cyan, blurRadius: 18)],
           ),
         ),
       ),

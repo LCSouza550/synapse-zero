@@ -3,7 +3,7 @@ import 'package:synapsezero/application/audio/asset_splash_audio.dart';
 import 'package:synapsezero/application/audio/splash_audio.dart';
 import 'package:synapsezero/presentation/home/home_placeholder.dart';
 import 'package:synapsezero/presentation/splash/splash_screen.dart';
-import 'package:synapsezero/presentation/theme/synapse_palette.dart';
+import 'package:synapsezero/presentation/theme/app_theme.dart';
 
 class SynapseZeroApp extends StatelessWidget {
   const SynapseZeroApp({super.key});
@@ -13,11 +13,7 @@ class SynapseZeroApp extends StatelessWidget {
     return MaterialApp(
       title: 'Synapse Zero',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: SynapsePalette.background,
-        useMaterial3: true,
-      ),
+      theme: AppTheme.dark(),
       home: const _Root(),
     );
   }
