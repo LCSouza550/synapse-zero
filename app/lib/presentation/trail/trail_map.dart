@@ -6,16 +6,18 @@ import 'package:synapsezero/application/trail/trail_progress.dart';
 import 'package:synapsezero/presentation/theme/app_colors.dart';
 import 'package:synapsezero/presentation/trail/trail_node.dart';
 
-/// Mapa em zigue-zague com os níveis de um setor (geometria do protótipo).
+/// Mapa em zigue-zague com os níveis de um setor. A trilha sobe: o primeiro
+/// nível fica na base e o chefe no topo.
 class TrailMap extends StatelessWidget {
   const TrailMap({
     super.key,
     required this.sectorIndex,
     required this.progress,
     required this.onLevelSelected,
+    this.focusKey,
   });
 
-  /// Posição horizontal de cada nó, como fração da largura.
+  /// Posição horizontal de cada nó (do 1º ao chefe), como fração da largura.
   static const List<double> nodeX = [0.50, 0.22, 0.50, 0.78, 0.50];
 
   /// Distância vertical entre nós, margem superior e altura do mapa.
@@ -23,12 +25,21 @@ class TrailMap extends StatelessWidget {
   static const double top = 22;
   static const double height = levelsPerSector * step + 8;
 
-  /// Distância do topo do nó ao centro do anel.
-  static const double _ringCenter = 30;
+  /// Distância do topo do nó ao centro do anel (o anel do chefe é maior).
+  static double _ringCenter(int k) => k == levelsPerSector - 1 ? 36 : 30;
+
+  /// Topo do nó [k] (0 = primeiro nível, na base do mapa).
+  static double nodeTop(int k) => top + (levelsPerSector - 1 - k) * step;
+
+  /// Centro vertical do anel do nó [k].
+  static double _centerY(int k) => nodeTop(k) + _ringCenter(k);
 
   final int sectorIndex;
   final TrailProgress progress;
   final ValueChanged<int> onLevelSelected;
+
+  /// Chave aplicada ao nó do nível atual, para a tela rolar até ele.
+  final GlobalKey? focusKey;
 
   @override
   Widget build(BuildContext context) {
@@ -54,8 +65,9 @@ class TrailMap extends StatelessWidget {
               for (var k = 0; k < levelsPerSector; k++)
                 Positioned(
                   left: nodeX[k] * width - TrailNode.width / 2,
-                  top: top + k * step,
+                  top: nodeTop(k),
                   child: TrailNode(
+                    key: first + k == progress.focusIndex ? focusKey : null,
                     index: first + k,
                     name: levelNames[first + k],
                     state: progress.stateOf(first + k),
@@ -104,8 +116,8 @@ class _RoutePainter extends CustomPainter {
     for (var k = 0; k < done.length; k++) {
       final x1 = TrailMap.nodeX[k] * size.width;
       final x2 = TrailMap.nodeX[k + 1] * size.width;
-      final y1 = TrailMap.top + k * TrailMap.step + TrailMap._ringCenter;
-      final y2 = TrailMap.top + (k + 1) * TrailMap.step + TrailMap._ringCenter;
+      final y1 = TrailMap._centerY(k);
+      final y2 = TrailMap._centerY(k + 1);
       final mid = (y1 + y2) / 2;
       final curve = Path()
         ..moveTo(x1, y1)

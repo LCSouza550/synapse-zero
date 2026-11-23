@@ -25,17 +25,34 @@ class TrailScreen extends StatefulWidget {
 }
 
 class _TrailScreenState extends State<TrailScreen> {
-  final GlobalKey _focusedSectorKey = GlobalKey();
+  final GlobalKey _focusedNodeKey = GlobalKey();
 
   @override
   void initState() {
     super.initState();
-    // Abre já no setor do nível atual, sem animação.
+    // A trilha sobe (setor 1 na base): abre com o nível atual no centro.
+    _scrollToFocus();
+  }
+
+  @override
+  void didUpdateWidget(TrailScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.progress.focusIndex != widget.progress.focusIndex) {
+      _scrollToFocus(animated: true);
+    }
+  }
+
+  void _scrollToFocus({bool animated = false}) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      if (widget.progress.focusIndex ~/ levelsPerSector == 0) return;
-      final target = _focusedSectorKey.currentContext;
-      if (target != null) Scrollable.ensureVisible(target);
+      final target = _focusedNodeKey.currentContext;
+      if (target == null) return;
+      Scrollable.ensureVisible(
+        target,
+        alignment: 0.5,
+        duration: animated ? const Duration(milliseconds: 450) : Duration.zero,
+        curve: Curves.easeOutCubic,
+      );
     });
   }
 
@@ -58,24 +75,28 @@ class _TrailScreenState extends State<TrailScreen> {
                       padding: EdgeInsets.fromLTRB(16, 16, 16, 12),
                       child: _Header(),
                     ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                      child: TrailSummary(progress: progress),
+                    ),
                     Expanded(
                       child: SingleChildScrollView(
-                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            TrailSummary(progress: progress),
-                            const SizedBox(height: 16),
-                            for (var s = 0; s < sectors.length; s++)
+                            // Do último setor (topo) ao primeiro (base).
+                            for (var s = sectors.length - 1; s >= 0; s--)
                               Padding(
-                                padding: const EdgeInsets.only(bottom: 16),
+                                padding: EdgeInsets.only(
+                                  bottom: s == 0 ? 0 : 16,
+                                ),
                                 child: SectorSection(
-                                  key: s == focusedSector
-                                      ? _focusedSectorKey
-                                      : null,
                                   sectorIndex: s,
                                   progress: progress,
                                   onLevelSelected: widget.onLevelSelected,
+                                  focusKey:
+                                      s == focusedSector ? _focusedNodeKey : null,
                                 ),
                               ),
                           ],

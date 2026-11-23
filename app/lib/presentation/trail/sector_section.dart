@@ -12,11 +12,15 @@ class SectorSection extends StatelessWidget {
     required this.sectorIndex,
     required this.progress,
     required this.onLevelSelected,
+    this.focusKey,
   });
 
   final int sectorIndex;
   final TrailProgress progress;
   final ValueChanged<int> onLevelSelected;
+
+  /// Repassada ao mapa, que a aplica ao nó do nível atual.
+  final GlobalKey? focusKey;
 
   /// Setores à frente do nível atual aparecem apagados, como no protótipo.
   bool get _locked {
@@ -41,6 +45,7 @@ class SectorSection extends StatelessWidget {
           sectorIndex: sectorIndex,
           progress: progress,
           onLevelSelected: onLevelSelected,
+          focusKey: focusKey,
         ),
       ],
     );
