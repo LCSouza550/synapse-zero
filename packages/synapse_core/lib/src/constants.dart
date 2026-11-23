@@ -19,7 +19,10 @@ abstract final class TileKind {
   static const int cross = 15;
 }
 
-/// Setor da Trilha Neural (5 níveis cada).
+/// Quantidade de níveis em cada setor da Trilha Neural.
+const int levelsPerSector = 5;
+
+/// Setor da Trilha Neural ([levelsPerSector] níveis cada).
 class Sector {
   const Sector(this.id, this.name, this.size, this.nets);
 
@@ -29,11 +32,23 @@ class Sector {
   final int nets;
 }
 
+/// 12 setores. Os quatro primeiros são os do protótipo. Cada ciclo seguinte
+/// repete os quatro formatos de tabuleiro já validados (5x5, 6x6, 7x7 com 2
+/// redes e 8x8 com 2 redes), com percursos mais sinuosos e folga menor
+/// (ver `trailSpec`).
 const List<Sector> sectors = [
   Sector('cortex', 'Córtex Primário', 5, 1),
   Sector('ponte', 'Ponte Sináptica', 6, 1),
   Sector('nucleo', 'Núcleo Quântico', 7, 2),
   Sector('singularidade', 'Singularidade', 8, 2),
+  Sector('cortex-profundo', 'Córtex Profundo', 5, 1),
+  Sector('fenda-talamica', 'Fenda Talâmica', 6, 1),
+  Sector('matriz-entrelacada', 'Matriz Entrelaçada', 7, 2),
+  Sector('horizonte-eventos', 'Horizonte de Eventos', 8, 2),
+  Sector('rede-fantasma', 'Rede Fantasma', 5, 1),
+  Sector('vacuo-sinaptico', 'Vácuo Sináptico', 6, 1),
+  Sector('nucleo-absoluto', 'Núcleo Absoluto', 7, 2),
+  Sector('ponto-zero', 'Ponto Zero', 8, 2),
 ];
 
 const List<String> levelNames = [
@@ -41,6 +56,14 @@ const List<String> levelNames = [
   'Ponte Inicial', 'Axônio Curto', 'Fenda Sináptica', 'Eco Dendrítico', 'Guardião Beta',
   'Duas Frequências', 'Spin Cruzado', 'Emaranhado', 'Colapso de Onda', 'Guardião Gama',
   'Horizonte', 'Lente Gravitacional', 'Órbita Instável', 'Ponto de Não Retorno', 'Guardião Zero',
+  'Reentrada', 'Eco Profundo', 'Camada Cinzenta', 'Pulso Retardado', 'Guardião Delta',
+  'Relé Silencioso', 'Corrente Lateral', 'Limiar Dourado', 'Sinapse Espelhada', 'Guardião Épsilon',
+  'Par Entrelaçado', 'Fase Oposta', 'Interferência', 'Superposição', 'Guardião Zeta',
+  'Luz Curvada', 'Maré Gravitacional', 'Disco de Acreção', 'Singularidade Nua', 'Guardião Eta',
+  'Sinal Fantasma', 'Memória Residual', 'Eco do Vazio', 'Latência Zero', 'Guardião Teta',
+  'Silêncio Elétrico', 'Flutuação Quântica', 'Pulso Invertido', 'Ruptura de Fase', 'Guardião Iota',
+  'Densidade Máxima', 'Fusão Neural', 'Cascata', 'Ressonância Total', 'Guardião Kappa',
+  'Último Neurônio', 'Colapso Total', 'Estado Fundamental', 'Zero Absoluto', 'Guardião Ômega',
 ];
 
 const List<String> complexityNames = ['Baixa', 'Média', 'Alta', 'Extrema'];

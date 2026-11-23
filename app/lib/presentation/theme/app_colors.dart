@@ -30,6 +30,11 @@ abstract final class AppColors {
 
   // Estados e destaques
   static const Color wireOff = Color(0xFF3A7586);
+
+  // Nós da Trilha Neural
+  static const Color nodeFill = Color(0xFF0C3A40);
+  static const Color nodeFillCurrent = Color(0xFF06282E);
+
   static const Color blue = Color(0xFF3B82F6);
   static const Color danger = Color(0xFFFF5C7A);
   static const Color star = Color(0xFFF0C35A);

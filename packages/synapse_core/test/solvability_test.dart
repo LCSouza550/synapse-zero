@@ -20,7 +20,7 @@ void main() {
       });
     }
 
-    test('Trilha: 20 níveis solúveis e sem circuito de emergência', () {
+    test('Trilha: todos os $trailLength níveis solúveis e sem circuito de emergência', () {
       for (var i = 0; i < trailLength; i++) {
         final level = generateLevel(trailSpec(i));
         expect(level.fallback, isFalse, reason: 'nível ${i + 1} caiu no caminho de emergência');
