@@ -1,7 +1,9 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:synapsezero/application/settings/avatars.dart';
 import 'package:synapsezero/application/trail/trail_progress.dart';
 import 'package:synapsezero/presentation/theme/app_colors.dart';
 import 'package:synapsezero/presentation/theme/app_typography.dart';
+import 'package:synapsezero/presentation/trail/avatar_token.dart';
 
 /// Nó de um nível no mapa da Trilha Neural.
 class TrailNode extends StatelessWidget {
@@ -12,11 +14,15 @@ class TrailNode extends StatelessWidget {
     required this.state,
     required this.stars,
     required this.isBoss,
+    this.avatar,
     this.onTap,
   });
 
   /// Largura do nó (também usada pelo mapa para centralizá-lo).
   static const double width = 130;
+
+  /// Distância do topo do nó ao topo da ficha do avatar (que paira acima do anel).
+  static const double avatarLift = 46;
 
   /// Índice do nível (0 a 59); o número exibido é `index + 1`.
   final int index;
@@ -26,6 +32,9 @@ class TrailNode extends StatelessWidget {
   /// Estrelas conquistadas (0 a 3).
   final int stars;
   final bool isBoss;
+
+  /// Avatar do jogador, quando está neste nível (`null` nos demais).
+  final Avatar? avatar;
   final VoidCallback? onTap;
 
   bool get _locked => state == TrailNodeState.locked;
@@ -72,12 +81,12 @@ class TrailNode extends StatelessWidget {
                         label: isBoss ? '👑' : '${index + 1}',
                         fontSize: isBoss ? 26 : 20,
                       )),
-                      if (_current)
-                        const Positioned(
-                          top: -12,
+                      if (avatar != null)
+                        Positioned(
+                          top: -avatarLift,
                           left: 0,
                           right: 0,
-                          child: Center(child: _YouBadge()),
+                          child: Center(child: AvatarToken(avatar: avatar!)),
                         ),
                     ],
                   ),
@@ -151,37 +160,6 @@ class _Ring extends StatelessWidget {
           height: 1,
           color: locked ? AppColors.muted : AppColors.text,
         ),
-      ),
-    );
-  }
-}
-
-class _YouBadge extends StatelessWidget {
-  const _YouBadge();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 1),
-      decoration: const BoxDecoration(
-        color: AppColors.alfa,
-        borderRadius: BorderRadius.all(Radius.circular(99)),
-        boxShadow: [BoxShadow(color: AppColors.alfaGlow, blurRadius: 14)],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.bolt, size: 12, color: AppColors.onAlfa),
-          const SizedBox(width: 2),
-          Text(
-            'VOCÊ',
-            style: AppTextStyles.value.copyWith(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: AppColors.onAlfa,
-            ),
-          ),
-        ],
       ),
     );
   }

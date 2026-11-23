@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:material_ui/material_ui.dart';
 import 'package:synapse_core/synapse_core.dart';
+import 'package:synapsezero/application/settings/avatars.dart';
 import 'package:synapsezero/application/trail/trail_progress.dart';
 import 'package:synapsezero/presentation/theme/app_colors.dart';
 import 'package:synapsezero/presentation/trail/trail_node.dart';
@@ -14,7 +15,9 @@ class TrailMap extends StatelessWidget {
     required this.sectorIndex,
     required this.progress,
     required this.onLevelSelected,
-    this.focusKey,
+    required this.nodeKeys,
+    required this.avatar,
+    required this.avatarAt,
   });
 
   /// Posição horizontal de cada nó (do 1º ao chefe), como fração da largura.
@@ -22,8 +25,9 @@ class TrailMap extends StatelessWidget {
 
   /// Distância vertical entre nós, margem superior e altura do mapa.
   static const double step = 124;
-  static const double top = 22;
-  static const double height = levelsPerSector * step + 8;
+  /// A margem superior abriga o avatar, que paira acima do primeiro nó do topo.
+  static const double top = 52;
+  static const double height = levelsPerSector * step + 38;
 
   /// Distância do topo do nó ao centro do anel (o anel do chefe é maior).
   static double _ringCenter(int k) => k == levelsPerSector - 1 ? 36 : 30;
@@ -38,8 +42,14 @@ class TrailMap extends StatelessWidget {
   final TrailProgress progress;
   final ValueChanged<int> onLevelSelected;
 
-  /// Chave aplicada ao nó do nível atual, para a tela rolar até ele.
-  final GlobalKey? focusKey;
+  /// Uma chave por nível (índice global 0 a 59), usada pela tela para
+  /// localizar os nós.
+  final List<GlobalKey> nodeKeys;
+
+  final Avatar avatar;
+
+  /// Nível onde o avatar está parado; `null` enquanto ele viaja.
+  final int? avatarAt;
 
   @override
   Widget build(BuildContext context) {
@@ -67,12 +77,13 @@ class TrailMap extends StatelessWidget {
                   left: nodeX[k] * width - TrailNode.width / 2,
                   top: nodeTop(k),
                   child: TrailNode(
-                    key: first + k == progress.focusIndex ? focusKey : null,
+                    key: nodeKeys[first + k],
                     index: first + k,
                     name: levelNames[first + k],
                     state: progress.stateOf(first + k),
                     stars: progress.starsAt(first + k),
                     isBoss: k == levelsPerSector - 1,
+                    avatar: first + k == avatarAt ? avatar : null,
                     onTap: () => onLevelSelected(first + k),
                   ),
                 ),

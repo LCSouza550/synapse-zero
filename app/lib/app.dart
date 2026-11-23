@@ -1,13 +1,31 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:synapsezero/application/audio/asset_splash_audio.dart';
+import 'package:synapsezero/application/audio/asset_theme_music.dart';
 import 'package:synapsezero/application/audio/splash_audio.dart';
-import 'package:synapsezero/application/trail/trail_progress.dart';
+import 'package:synapsezero/application/audio/theme_music.dart';
+import 'package:synapsezero/application/audio/theme_music_controller.dart';
+import 'package:synapsezero/application/settings/settings_controller.dart';
 import 'package:synapsezero/presentation/splash/splash_screen.dart';
 import 'package:synapsezero/presentation/theme/app_theme.dart';
-import 'package:synapsezero/presentation/trail/trail_screen.dart';
+import 'package:synapsezero/presentation/trail/trail_flow.dart';
 
 class SynapseZeroApp extends StatelessWidget {
-  const SynapseZeroApp({super.key});
+  const SynapseZeroApp({
+    super.key,
+    required this.settings,
+    this.splashAudio,
+    this.themeMusic,
+    this.boardBuilder,
+  });
+
+  final SettingsController settings;
+
+  /// Áudios injetáveis (testes usam versões mudas). Padrão: os do aplicativo.
+  final SplashAudio? splashAudio;
+  final ThemeMusic? themeMusic;
+
+  /// Tela de jogo injetável (padrão: o tabuleiro provisório).
+  final BoardBuilder? boardBuilder;
 
   @override
   Widget build(BuildContext context) {
@@ -15,54 +33,72 @@ class SynapseZeroApp extends StatelessWidget {
       title: 'Synapse Zero',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.dark(),
-      home: const _Root(),
+      home: _Root(
+        settings: settings,
+        splashAudio: splashAudio,
+        themeMusic: themeMusic,
+        boardBuilder: boardBuilder,
+      ),
     );
   }
 }
 
 class _Root extends StatefulWidget {
-  const _Root();
+  const _Root({
+    required this.settings,
+    this.splashAudio,
+    this.themeMusic,
+    this.boardBuilder,
+  });
+
+  final SettingsController settings;
+  final SplashAudio? splashAudio;
+  final ThemeMusic? themeMusic;
+  final BoardBuilder? boardBuilder;
 
   @override
   State<_Root> createState() => _RootState();
 }
 
-class _RootState extends State<_Root> {
-  /// Verdadeiro em builds de release (`flutter run --release`, APK de loja).
-  static const bool _isRelease = bool.fromEnvironment('dart.vm.product');
-
+class _RootState extends State<_Root> with WidgetsBindingObserver {
   bool _splashDone = false;
 
-  /// Progresso da trilha. Ainda só em memória: a persistência é uma etapa
-  /// futura.
-  TrailProgress _progress = TrailProgress.empty();
+  /// A abertura só toca com "efeitos sonoros" ligado. O áudio pertence a este
+  /// widget, que o libera.
+  late final SplashAudio _splashAudio = GatedSplashAudio(
+    inner: widget.splashAudio ?? AssetSplashAudio(),
+    isEnabled: () => widget.settings.soundEffects,
+  );
 
-  /// Som ativo por padrão. O áudio pertence a este widget, que o libera.
-  final SplashAudio _audio = AssetSplashAudio();
+  late final ThemeMusicController _music = ThemeMusicController(
+    music: widget.themeMusic ?? AssetThemeMusic(),
+    settings: widget.settings,
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    // Cria a música já aqui, para o dispose sempre liberar o que foi criado.
+    _music.setForeground(true);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _music.setForeground(state == AppLifecycleState.resumed);
+  }
 
   @override
   void dispose() {
-    _audio.dispose();
+    WidgetsBinding.instance.removeObserver(this);
+    _music.dispose();
+    _splashAudio.dispose();
     super.dispose();
   }
 
-  /// TEMPORÁRIO até a etapa do tabuleiro, que abrirá o nível tocado.
-  /// Em debug, concluir o nível tocado permite ver o mapa evoluir
-  /// (1 a 3 estrelas, em rodízio). Em release, apenas informa.
-  void _onLevelSelected(int index) {
-    if (_isRelease) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tabuleiro em construção')),
-      );
-      return;
-    }
-    setState(() {
-      _progress = _progress.withResult(
-        index,
-        stars: index % 3 + 1,
-        score: 300 + 20 * index,
-      );
-    });
+  void _onSplashFinished() {
+    setState(() => _splashDone = true);
+    _music.allow();
   }
 
   @override
@@ -70,15 +106,15 @@ class _RootState extends State<_Root> {
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 450),
       child: _splashDone
-          ? TrailScreen(
+          ? TrailFlow(
               key: const ValueKey('trail'),
-              progress: _progress,
-              onLevelSelected: _onLevelSelected,
+              settings: widget.settings,
+              boardBuilder: widget.boardBuilder,
             )
           : SplashScreen(
               key: const ValueKey('splash'),
-              audio: _audio,
-              onFinished: () => setState(() => _splashDone = true),
+              audio: _splashAudio,
+              onFinished: _onSplashFinished,
             ),
     );
   }

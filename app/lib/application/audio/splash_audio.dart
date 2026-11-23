@@ -22,3 +22,23 @@ class SilentSplashAudio implements SplashAudio {
   @override
   Future<void> dispose() async {}
 }
+
+/// Só toca a abertura se [isEnabled] for verdadeiro no momento de tocar
+/// (usado para respeitar a opção "efeitos sonoros").
+class GatedSplashAudio implements SplashAudio {
+  GatedSplashAudio({required this.inner, required this.isEnabled});
+
+  final SplashAudio inner;
+  final bool Function() isEnabled;
+
+  @override
+  Future<void> prepare() => inner.prepare();
+
+  @override
+  Future<void> playIntro() async {
+    if (isEnabled()) await inner.playIntro();
+  }
+
+  @override
+  Future<void> dispose() => inner.dispose();
+}

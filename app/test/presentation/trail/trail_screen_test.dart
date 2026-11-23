@@ -1,14 +1,28 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:synapse_core/synapse_core.dart';
+import 'package:synapsezero/application/settings/avatars.dart';
 import 'package:synapsezero/application/trail/trail_progress.dart';
 import 'package:synapsezero/presentation/theme/app_theme.dart';
 import 'package:synapsezero/presentation/trail/trail_screen.dart';
 
-Widget _app(TrailProgress progress, ValueChanged<int> onSelected) {
+final String _emoji = defaultAvatar.emoji;
+
+Widget _app(
+  TrailProgress progress,
+  ValueChanged<int> onSelected, {
+  Key? key,
+  VoidCallback? onOpenSettings,
+}) {
   return MaterialApp(
     theme: AppTheme.dark(),
-    home: TrailScreen(progress: progress, onLevelSelected: onSelected),
+    home: TrailScreen(
+      key: key,
+      progress: progress,
+      onLevelSelected: onSelected,
+      avatar: defaultAvatar,
+      onOpenSettings: onOpenSettings,
+    ),
   );
 }
 
@@ -21,7 +35,7 @@ void main() {
     expect(find.textContaining('0 / 180'), findsOneWidget);
     expect(find.textContaining('0 / $trailLength Nódulos'), findsOneWidget);
     expect(find.text('Primeiro Pulso'), findsOneWidget);
-    expect(find.text('VOCÊ'), findsOneWidget);
+    expect(find.text(_emoji), findsOneWidget);
   });
 
   testWidgets('tocar o nível atual chama o callback com o índice', (tester) async {
@@ -73,7 +87,8 @@ void main() {
 
     expect(find.text('Setor 12 • Ponto Zero'), findsWidgets);
     expect(find.textContaining('180 / 180'), findsOneWidget);
-    expect(find.text('VOCÊ'), findsNothing);
+    // Trilha concluída: o avatar descansa no último nível.
+    expect(find.text(_emoji), findsOneWidget);
   });
 
   testWidgets('a trilha sobe: nível 1 abaixo do 2, setor 1 abaixo do setor 2', (tester) async {
@@ -100,25 +115,75 @@ void main() {
     expect(y, inInclusiveRange(0, viewport));
   });
 
-  testWidgets('ao concluir um nível, a tela acompanha o novo nível atual', (tester) async {
-    var progress = TrailProgress.fromLists(stars: List.filled(4, 3));
+  testWidgets('o avatar paira acima do nível atual', (tester) async {
+    final progress = TrailProgress.fromLists(stars: List.filled(2, 3));
+    await tester.pumpWidget(_app(progress, (_) {}));
+    await tester.pumpAndSettle();
+
+    final avatar = tester.getCenter(find.text(_emoji));
+    final level = tester.getCenter(find.text('3'));
+    expect((avatar.dx - level.dx).abs(), lessThan(1));
+    expect(avatar.dy, lessThan(level.dy));
+  });
+
+  testWidgets('a engrenagem abre as configurações', (tester) async {
+    var opened = 0;
+    await tester.pumpWidget(
+      _app(TrailProgress.empty(), (_) {}, onOpenSettings: () => opened++),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Configurações'));
+    expect(opened, 1);
+  });
+
+  testWidgets('advanceAvatar leva o avatar até o próximo nível', (tester) async {
+    final key = GlobalKey<TrailScreenState>();
+    var progress = TrailProgress.fromLists(stars: List.filled(2, 3));
     late StateSetter update;
     await tester.pumpWidget(
       StatefulBuilder(
         builder: (context, setState) {
           update = setState;
-          return _app(progress, (_) {});
+          return _app(progress, (_) {}, key: key);
         },
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('VOCÊ'), findsOneWidget);
 
-    update(() => progress = progress.withResult(4, stars: 3, score: 1));
+    update(() => progress = progress.withResult(2, stars: 3, score: 1));
     await tester.pumpAndSettle();
+    // O progresso mudou, mas o avatar só sai do lugar quando mandado.
+    final before = tester.getCenter(find.text(_emoji));
+    expect(
+      (before.dx - tester.getCenter(find.text('3')).dx).abs(),
+      lessThan(1),
+    );
+
+    final done = key.currentState!.advanceAvatar(3);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    // Durante a viagem há uma única ficha (a que se move).
+    expect(find.text(_emoji), findsOneWidget);
+
+    await tester.pumpAndSettle();
+    await done;
+
+    final avatar = tester.getCenter(find.text(_emoji));
+    final level = tester.getCenter(find.text('4'));
+    expect((avatar.dx - level.dx).abs(), lessThan(1));
+    expect(avatar.dy, lessThan(level.dy));
 
     final viewport = tester.view.physicalSize.height / tester.view.devicePixelRatio;
-    final y = tester.getCenter(find.text('6')).dy;
-    expect(y, inInclusiveRange(0, viewport));
+    expect(level.dy, inInclusiveRange(0, viewport));
+  });
+
+  testWidgets('advanceAvatar para o mesmo nível não faz nada', (tester) async {
+    final key = GlobalKey<TrailScreenState>();
+    await tester.pumpWidget(_app(TrailProgress.empty(), (_) {}, key: key));
+    await tester.pumpAndSettle();
+
+    await key.currentState!.advanceAvatar(0);
+    expect(find.text(_emoji), findsOneWidget);
   });
 }

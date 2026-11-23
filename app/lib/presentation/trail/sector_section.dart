@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:synapse_core/synapse_core.dart';
+import 'package:synapsezero/application/settings/avatars.dart';
 import 'package:synapsezero/application/trail/trail_progress.dart';
 import 'package:synapsezero/presentation/theme/app_colors.dart';
 import 'package:synapsezero/presentation/theme/app_typography.dart';
@@ -12,15 +13,19 @@ class SectorSection extends StatelessWidget {
     required this.sectorIndex,
     required this.progress,
     required this.onLevelSelected,
-    this.focusKey,
+    required this.nodeKeys,
+    required this.avatar,
+    required this.avatarAt,
   });
 
   final int sectorIndex;
   final TrailProgress progress;
   final ValueChanged<int> onLevelSelected;
 
-  /// Repassada ao mapa, que a aplica ao nó do nível atual.
-  final GlobalKey? focusKey;
+  /// Repassados ao mapa (ver [TrailMap]).
+  final List<GlobalKey> nodeKeys;
+  final Avatar avatar;
+  final int? avatarAt;
 
   /// Setores à frente do nível atual aparecem apagados, como no protótipo.
   bool get _locked {
@@ -45,7 +50,9 @@ class SectorSection extends StatelessWidget {
           sectorIndex: sectorIndex,
           progress: progress,
           onLevelSelected: onLevelSelected,
-          focusKey: focusKey,
+          nodeKeys: nodeKeys,
+          avatar: avatar,
+          avatarAt: avatarAt,
         ),
       ],
     );

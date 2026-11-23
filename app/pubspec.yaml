@@ -38,6 +38,7 @@ dependencies:
   synapse_core:
     path: ../packages/synapse_core
   audioplayers: ^6.8.1
+  shared_preferences: ^2.5.5
 
 dev_dependencies:
   flutter_test:
@@ -63,6 +64,7 @@ flutter:
 
   assets:
     - assets/audio/splash.wav
+    - assets/audio/theme.wav
 
   # Fontes empacotadas (offline). Baixe com: tool/fetch_fonts.ps1
   # A Unbounded é variável: o mesmo arquivo atende aos pesos 500 e 700.
