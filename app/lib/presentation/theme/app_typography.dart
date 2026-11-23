@@ -1,5 +1,3 @@
-import 'dart:ui' show FontFeature, FontVariation;
-
 import 'package:material_ui/material_ui.dart';
 import 'package:synapsezero/presentation/theme/app_colors.dart';
 import 'package:synapsezero/presentation/theme/app_fonts.dart';
