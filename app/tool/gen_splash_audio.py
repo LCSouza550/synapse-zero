@@ -53,13 +53,23 @@ def note(freq, start, dur, kind, vol):
     add(start, start + dur + 0.05, kind, lambda t: np.full_like(t, freq), lambda t: exp_env(pts, t))
 
 
-def sweep(f0, f1, start, dur, kind, vol):
-    pts = [
-        (start, 0.0001),
-        (start + dur * 0.15, vol),
-        (start + dur * 0.85, vol * 0.6),
-        (start + dur + 0.08, 0.0001),
-    ]
+def sweep(f0, f1, start, dur, kind, vol, hold_to_end=False):
+    """Varredura exponencial de f0 a f1. Com [hold_to_end], o volume se mantém
+    até o fim e só então cai, para emendar sem intervalo no som seguinte."""
+    if hold_to_end:
+        pts = [
+            (start, 0.0001),
+            (start + 0.04, vol),
+            (start + dur, vol * 0.85),
+            (start + dur + 0.12, 0.0001),
+        ]
+    else:
+        pts = [
+            (start, 0.0001),
+            (start + dur * 0.15, vol),
+            (start + dur * 0.85, vol * 0.6),
+            (start + dur + 0.08, 0.0001),
+        ]
 
     def freq(t):
         u = np.clip((t - start) / dur, 0, 1)
@@ -88,29 +98,25 @@ beam_end = BEAM_END * TOTAL
 exit_time = (APPROACH_START + entry_at * move_span + SPIN_SPAN + (exit_at - entry_at) * move_span) * TOTAL
 print(f"contato {contact:.3f}s | conexão {connected:.3f}s | saída do conector {exit_time:.3f}s | fim do feixe {beam_end:.3f}s")
 
-# 1) Feixe parte (estalo curto) e se aproxima: varredura ascendente até o contato.
+# 1) Partida do feixe: estalo curto e varredura ascendente que segue sem pausa
+# até a conexão (o toque e o giro do conector não têm som próprio).
 # Frequências acima de ~500 Hz: o alto-falante do celular quase não reproduz o
-# que está abaixo de 300 Hz, e a abertura parecia só começar no contato.
+# que está abaixo de 300 Hz.
 note(1320, beam_start, 0.08, "triangle", 0.10)
-sweep(560, 1120, beam_start, contact - beam_start, "sine", 0.10)
+sweep(560, 1400, beam_start, connected - beam_start, "sine", 0.10, hold_to_end=True)
 
-# 2) Contato: toque seco; giro do conector: varredura que sobe (carga).
-note(330, contact, 0.2, "triangle", 0.12)
-note(495, contact, 0.2, "sine", 0.06)
-sweep(500, 1400, contact, connected - contact, "triangle", 0.09)
-
-# 3) Conexão: estalo + acorde + batida grave.
+# 2) Conexão: estalo + acorde + batida grave.
 note(1500, connected, 0.03, "square", 0.05)
 for i, f in enumerate([523.25, 784, 1046.5, 1568]):
     note(f, connected, 1.0 - i * 0.1, "sine", 0.15 - i * 0.015)
 note(98, connected, 0.45, "sine", 0.12)
 
-# 4) Feixe atravessa e segue até o fim; zumbido de energia.
+# 3) Feixe atravessa e segue até o fim; zumbido de energia.
 sweep(420, 1000, connected, beam_end - connected, "sine", 0.06)
 hum(261.63, connected, beam_end + 0.25, 0.05)
 hum(392, connected, beam_end + 0.25, 0.032)
 
-# 5) Nome completo: arpejo final junto com o fim do feixe.
+# 4) Nome completo: arpejo final junto com o fim do feixe.
 for i, f in enumerate([784, 1047, 1319, 1568]):
     note(f, beam_end - 0.25 + i * 0.08, 0.6, "triangle", 0.1)
 
