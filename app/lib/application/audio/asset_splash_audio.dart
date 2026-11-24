@@ -3,9 +3,20 @@ import 'package:synapsezero/application/audio/splash_audio.dart';
 
 /// Toca `assets/audio/splash.wav` com o pacote audioplayers.
 class AssetSplashAudio implements SplashAudio {
-  AssetSplashAudio({AudioPlayer? player}) : _player = player ?? AudioPlayer();
+  AssetSplashAudio({
+    AudioPlayer? player,
+    this.outputLatency = defaultOutputLatency,
+  }) : _player = player ?? AudioPlayer();
 
   final AudioPlayer _player;
+
+  /// Atraso entre o player dizer que começou e o som sair no aparelho.
+  /// Medido em gravação de tela no celular de teste: o som saía ~0,65 s depois
+  /// da animação. A animação espera esse tempo para os dois coincidirem.
+  /// Se o som ainda sair atrasado (ou adiantado), ajuste este valor.
+  static const Duration defaultOutputLatency = Duration(milliseconds: 650);
+
+  final Duration outputLatency;
 
   /// Caminho relativo à pasta `assets/` (o AssetSource já a considera).
   static const String _asset = 'audio/splash.wav';
@@ -29,6 +40,7 @@ class AssetSplashAudio implements SplashAudio {
     );
     await _player.resume();
     await started;
+    await Future<void>.delayed(outputLatency);
   }
 
   @override
