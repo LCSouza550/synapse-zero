@@ -15,7 +15,8 @@ Widget _defaultBoardBuilder(BuildContext context, int levelIndex) =>
     BoardPlaceholderScreen(levelIndex: levelIndex);
 
 /// Fluxo principal: trilha -> tabuleiro -> trilha (o avatar anda até a próxima
-/// etapa) -> tabuleiro da nova etapa.
+/// etapa e fica parado). O tabuleiro da nova etapa só abre quando o jogador
+/// toca nela.
 class TrailFlow extends StatefulWidget {
   const TrailFlow({
     super.key,
@@ -56,35 +57,31 @@ class _TrailFlowState extends State<TrailFlow> {
     _sfx(GameSound.tap);
     final navigator = Navigator.of(context);
     try {
-      var level = first;
-      while (true) {
-        final route = MaterialPageRoute<LevelResult>(
-          builder: (context) =>
-              (widget.boardBuilder ?? _defaultBoardBuilder)(context, level),
+      final route = MaterialPageRoute<LevelResult>(
+        builder: (context) =>
+            (widget.boardBuilder ?? _defaultBoardBuilder)(context, first),
+      );
+      final result = await navigator.push(route);
+      // Espera a tela do tabuleiro sair por completo antes de animar.
+      await route.completed;
+      if (!mounted || result == null) return;
+
+      final advances = _progress.stateOf(first) == TrailNodeState.current;
+      setState(() {
+        _progress = _progress.withResult(
+          first,
+          stars: result.stars,
+          score: result.score,
         );
-        final result = await navigator.push(route);
-        // Espera a tela do tabuleiro sair por completo antes de animar.
-        await route.completed;
-        if (!mounted || result == null) return;
+      });
+      // Refazer um nível já concluído não move o avatar.
+      final next = _progress.currentIndex;
+      if (!advances || next == null) return;
 
-        final advances = _progress.stateOf(level) == TrailNodeState.current;
-        setState(() {
-          _progress = _progress.withResult(
-            level,
-            stars: result.stars,
-            score: result.score,
-          );
-        });
-        // Refazer um nível já concluído não move o avatar.
-        final next = _progress.currentIndex;
-        if (!advances || next == null) return;
-
-        await WidgetsBinding.instance.endOfFrame;
-        _sfx(GameSound.advance);
-        await _trailKey.currentState?.advanceAvatar(next);
-        if (!mounted) return;
-        level = next;
-      }
+      await WidgetsBinding.instance.endOfFrame;
+      _sfx(GameSound.advance);
+      // O avatar chega e estaciona: nada abre sozinho.
+      await _trailKey.currentState?.advanceAvatar(next);
     } finally {
       _playing = false;
     }

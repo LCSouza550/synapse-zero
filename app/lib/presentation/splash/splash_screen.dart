@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:material_ui/material_ui.dart';
 import 'package:synapsezero/application/audio/splash_audio.dart';
 import 'package:synapsezero/presentation/splash/splash_painter.dart';
@@ -48,8 +46,14 @@ class _SplashScreenState extends State<SplashScreen>
       // Falha de áudio não deve impedir a abertura do jogo.
     }
     if (!mounted) return;
+    // O som começa primeiro; a animação só parte quando ele realmente tocou.
+    try {
+      await widget.audio.playIntro();
+    } catch (_) {
+      // Sem som, a abertura segue.
+    }
+    if (!mounted) return;
     _controller.forward();
-    unawaited(widget.audio.playIntro().catchError((_) {}));
   }
 
   void _onStatus(AnimationStatus status) {

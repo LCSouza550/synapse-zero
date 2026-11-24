@@ -16,6 +16,7 @@ class SectorSection extends StatelessWidget {
     required this.nodeKeys,
     required this.avatar,
     required this.avatarAt,
+    required this.avatarLevel,
     this.travel,
     this.travelFrom,
   });
@@ -28,6 +29,7 @@ class SectorSection extends StatelessWidget {
   final List<GlobalKey> nodeKeys;
   final Avatar avatar;
   final int? avatarAt;
+  final int avatarLevel;
   final Animation<double>? travel;
   final int? travelFrom;
 
@@ -57,6 +59,7 @@ class SectorSection extends StatelessWidget {
           nodeKeys: nodeKeys,
           avatar: avatar,
           avatarAt: avatarAt,
+          avatarLevel: avatarLevel,
           travel: travel,
           travelFrom: travelFrom,
         ),

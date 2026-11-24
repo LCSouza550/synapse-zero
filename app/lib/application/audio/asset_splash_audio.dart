@@ -16,8 +16,20 @@ class AssetSplashAudio implements SplashAudio {
     await _player.setSource(AssetSource(_asset));
   }
 
+  /// Limite de espera pelo início real do som; passado isso, a animação parte
+  /// mesmo assim (melhor sem sincronia do que travar a abertura).
+  static const Duration _startTimeout = Duration(milliseconds: 1000);
+
   @override
-  Future<void> playIntro() => _player.resume();
+  Future<void> playIntro() async {
+    // Assina antes de mandar tocar: o 1º evento de posição marca o início real.
+    final started = _player.onPositionChanged.first.timeout(
+      _startTimeout,
+      onTimeout: () => Duration.zero,
+    );
+    await _player.resume();
+    await started;
+  }
 
   @override
   Future<void> dispose() => _player.dispose();

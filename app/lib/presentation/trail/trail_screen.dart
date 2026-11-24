@@ -44,8 +44,10 @@ class TrailScreen extends StatefulWidget {
 
 class TrailScreenState extends State<TrailScreen>
     with SingleTickerProviderStateMixin {
-  static const Duration _travelDuration = Duration(milliseconds: 1000);
-  static const Duration _scrollDuration = Duration(milliseconds: 600);
+  /// Duração da viagem do avatar. O som `advance.wav` tem a mesma duração
+  /// (`tool/gen_sfx.py`): se mudar uma, mude a outra.
+  static const Duration _travelDuration = Duration(milliseconds: 2400);
+  static const Duration _scrollDuration = Duration(milliseconds: 1200);
 
   final List<GlobalKey> _nodeKeys = List.generate(
     trailLength,
@@ -228,6 +230,7 @@ class TrailScreenState extends State<TrailScreen>
                                       avatar: widget.avatar,
                                       avatarAt:
                                           _traveling ? null : _avatarLevel,
+                                      avatarLevel: _avatarLevel,
                                       travel: _traveling && _onRoute
                                           ? _travel
                                           : null,

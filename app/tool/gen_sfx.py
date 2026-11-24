@@ -34,9 +34,10 @@ def tap() -> np.ndarray:
 
 
 def advance() -> np.ndarray:
-    """Varredura ascendente de 1,0 s (a duração da viagem do avatar), que
-    termina num pequeno brilho. Dura exatamente como a animação."""
-    dur = 1.0
+    """Varredura ascendente com a duração da viagem do avatar, que termina num
+    pequeno brilho. Dura exatamente como a animação (_travelDuration em
+    lib/presentation/trail/trail_screen.dart)."""
+    dur = 2.4
     n = int(SR * dur)
     t = np.arange(n) / SR
     u = t / dur
@@ -45,9 +46,10 @@ def advance() -> np.ndarray:
     sweep = np.sin(phase) + 0.35 * np.sin(2 * phase)
     sweep *= np.sin(np.pi * np.minimum(1, u * 1.15)) ** 0.8 * (0.35 + 0.65 * u)
     # brilho final (chegada)
-    chime_t = np.clip(t - 0.82, 0, None)
+    arrive = dur - 0.18
+    chime_t = np.clip(t - arrive, 0, None)
     chime = (np.sin(2 * np.pi * 1568 * chime_t) + 0.5 * np.sin(2 * np.pi * 2352 * chime_t))
-    chime *= np.exp(-chime_t * 14) * (t >= 0.82) * 0.9
+    chime *= np.exp(-chime_t * 14) * (t >= arrive) * 0.9
     sig = sweep * 0.7 + chime
     fade = np.minimum(1, (dur - t) / 0.03)
     return sig * fade

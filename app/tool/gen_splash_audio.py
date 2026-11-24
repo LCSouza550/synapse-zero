@@ -76,7 +76,7 @@ def hum(freq, start, end, vol):
 # --- partitura sincronizada com SplashTimeline (app/lib/presentation/splash/splash_timeline.dart) ---
 # Mantenha estas constantes iguais às da timeline (fração de t x 4,2 s).
 TOTAL = 4.2
-START_FRAC, END_FRAC, RADIUS_FRAC, CENTER_FRAC = 0.08, 0.92, 0.13, 0.5
+START_FRAC, END_FRAC, RADIUS_FRAC, CENTER_FRAC = 0.08, 0.92, 0.104, 0.5
 APPROACH_START, BEAM_END, SPIN_SPAN, GLOW_SWELL = 0.04, 0.88, 0.16, 0.03
 entry_at = (CENTER_FRAC - RADIUS_FRAC - START_FRAC) / (END_FRAC - START_FRAC)
 exit_at = (CENTER_FRAC + RADIUS_FRAC - START_FRAC) / (END_FRAC - START_FRAC)

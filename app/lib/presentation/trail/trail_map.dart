@@ -18,6 +18,7 @@ class TrailMap extends StatelessWidget {
     required this.nodeKeys,
     required this.avatar,
     required this.avatarAt,
+    required this.avatarLevel,
     this.travel,
     this.travelFrom,
   });
@@ -33,7 +34,7 @@ class TrailMap extends StatelessWidget {
 
   /// Curva da viagem do avatar. O avatar e o brilho do tracejado usam a mesma,
   /// para chegarem juntos.
-  static const Curve travelCurve = Curves.easeInOutCubic;
+  static const Curve travelCurve = Curves.easeInOutSine;
 
   /// Distância do topo do nó ao centro do anel (o anel do chefe é maior).
   static double ringCenter(int k) => k == levelsPerSector - 1 ? 36 : 30;
@@ -56,6 +57,11 @@ class TrailMap extends StatelessWidget {
 
   /// Nível onde o avatar está parado; `null` enquanto ele viaja.
   final int? avatarAt;
+
+  /// Nível que o avatar já alcançou (durante a viagem, o de partida). Um
+  /// trecho do tracejado só fica aceso depois que o avatar passou por ele;
+  /// assim, concluir um nível não acende o trecho antes da hora.
+  final int avatarLevel;
 
   /// Animação da viagem do avatar (0 a 1), ou `null` se não há viagem neste
   /// trecho. Com ela, o trecho do tracejado percorrido vai acendendo.
@@ -88,7 +94,8 @@ class TrailMap extends StatelessWidget {
                   painter: _RoutePainter(
                     done: [
                       for (var k = 0; k < levelsPerSector - 1; k++)
-                        progress.starsAt(first + k) > 0,
+                        progress.starsAt(first + k) > 0 &&
+                            first + k < avatarLevel,
                     ],
                     travel: travel,
                     travelSegment: _travelSegment(first),

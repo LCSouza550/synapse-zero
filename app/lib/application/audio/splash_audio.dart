@@ -4,6 +4,8 @@ abstract interface class SplashAudio {
   /// Carrega o som antes de a animação começar, para manter áudio e imagem sincronizados.
   Future<void> prepare();
 
+  /// Toca a abertura. Só completa quando o som realmente começou, para a
+  /// animação partir junto com ele (o início do áudio no aparelho demora).
   Future<void> playIntro();
 
   /// Libera os recursos. Chamado por quem criou o áudio.

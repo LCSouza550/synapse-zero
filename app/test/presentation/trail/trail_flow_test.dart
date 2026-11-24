@@ -67,7 +67,7 @@ Future<void> _pump(
 }
 
 void main() {
-  testWidgets('vencer volta à trilha, o avatar anda e só então abre o próximo tabuleiro',
+  testWidgets('vencer volta à trilha, o avatar anda e estaciona; o próximo tabuleiro só abre ao tocar',
       (tester) async {
     await _pump(tester);
     await tester.tap(find.text('1'));
@@ -79,17 +79,18 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
     expect(find.text('TABULEIRO 1'), findsNothing);
 
+    // Mesmo depois de o avatar chegar, nada abre sozinho.
     await tester.pumpAndSettle();
-    expect(find.text('TABULEIRO 1'), findsOneWidget);
-
-    // Sai sem vencer: a trilha mostra o progresso e o avatar no nível 2.
-    await tester.tap(find.text('Sair'));
-    await tester.pumpAndSettle();
-    expect(find.text('TABULEIRO 1'), findsNothing);
+    expect(find.textContaining('TABULEIRO'), findsNothing);
     expect(find.textContaining('2 / 180'), findsOneWidget);
     final avatar = tester.getCenter(find.byType(AvatarToken));
     final level = tester.getCenter(find.text('2'));
     expect((avatar.dx - level.dx).abs(), lessThan(1));
+
+    // O jogador toca na etapa 2 e só então o tabuleiro abre.
+    await tester.tap(find.text('2'));
+    await tester.pumpAndSettle();
+    expect(find.text('TABULEIRO 1'), findsOneWidget);
   });
 
   testWidgets('sair sem vencer não muda nada', (tester) async {
