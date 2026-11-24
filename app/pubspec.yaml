@@ -65,6 +65,8 @@ flutter:
   assets:
     - assets/audio/splash.wav
     - assets/audio/theme.wav
+    - assets/audio/tap.wav
+    - assets/audio/advance.wav
 
   # Fontes empacotadas (offline). Baixe com: tool/fetch_fonts.ps1
   # A Unbounded é variável: o mesmo arquivo atende aos pesos 500 e 700.

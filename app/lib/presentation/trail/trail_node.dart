@@ -149,9 +149,23 @@ class _Ring extends StatelessWidget {
           color: locked ? AppColors.line : AppColors.alfa,
           width: 3,
         ),
+        // Concluído: brilho forte em duas camadas. Atual: brilho moderado.
         boxShadow: locked
             ? null
-            : const [BoxShadow(color: AppColors.alfaGlow, blurRadius: 14)],
+            : current
+                ? const [BoxShadow(color: AppColors.alfaGlow, blurRadius: 14)]
+                : const [
+                    BoxShadow(
+                      color: AppColors.alfaGlow,
+                      blurRadius: 22,
+                      spreadRadius: 2,
+                    ),
+                    BoxShadow(
+                      color: Color(0x4D3DEAF2),
+                      blurRadius: 44,
+                      spreadRadius: 6,
+                    ),
+                  ],
       ),
       child: Text(
         label,

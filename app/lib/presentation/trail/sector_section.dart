@@ -16,6 +16,8 @@ class SectorSection extends StatelessWidget {
     required this.nodeKeys,
     required this.avatar,
     required this.avatarAt,
+    this.travel,
+    this.travelFrom,
   });
 
   final int sectorIndex;
@@ -26,6 +28,8 @@ class SectorSection extends StatelessWidget {
   final List<GlobalKey> nodeKeys;
   final Avatar avatar;
   final int? avatarAt;
+  final Animation<double>? travel;
+  final int? travelFrom;
 
   /// Setores à frente do nível atual aparecem apagados, como no protótipo.
   bool get _locked {
@@ -53,6 +57,8 @@ class SectorSection extends StatelessWidget {
           nodeKeys: nodeKeys,
           avatar: avatar,
           avatarAt: avatarAt,
+          travel: travel,
+          travelFrom: travelFrom,
         ),
       ],
     );

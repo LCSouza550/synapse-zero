@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:synapsezero/application/audio/game_sounds.dart';
 import 'package:synapsezero/application/audio/splash_audio.dart';
 import 'package:synapsezero/application/audio/theme_music.dart';
 import 'package:synapsezero/application/audio/theme_music_controller.dart';
@@ -17,6 +18,16 @@ class _FakeMusic implements ThemeMusic {
 
   @override
   Future<void> dispose() async => calls.add('dispose');
+}
+
+class _FakeSounds implements GameSounds {
+  final List<GameSound> played = [];
+
+  @override
+  Future<void> play(GameSound sound) async => played.add(sound);
+
+  @override
+  Future<void> dispose() async {}
 }
 
 class _FakeSplash implements SplashAudio {
@@ -106,6 +117,22 @@ void main() {
       await gated.playIntro();
 
       expect(inner.played, 1);
+    });
+  });
+
+  group('GatedGameSounds', () {
+    test('só toca efeitos com a opção ligada', () async {
+      final inner = _FakeSounds();
+      var enabled = true;
+      final gated = GatedGameSounds(inner: inner, isEnabled: () => enabled);
+
+      await gated.play(GameSound.tap);
+      enabled = false;
+      await gated.play(GameSound.advance);
+      enabled = true;
+      await gated.play(GameSound.advance);
+
+      expect(inner.played, [GameSound.tap, GameSound.advance]);
     });
   });
 }

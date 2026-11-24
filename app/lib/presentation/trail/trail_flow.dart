@@ -1,4 +1,5 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:synapsezero/application/audio/game_sounds.dart';
 import 'package:synapsezero/application/settings/settings_controller.dart';
 import 'package:synapsezero/application/trail/level_result.dart';
 import 'package:synapsezero/application/trail/trail_progress.dart';
@@ -21,11 +22,15 @@ class TrailFlow extends StatefulWidget {
     required this.settings,
     this.boardBuilder,
     this.initialProgress,
+    this.sounds = const SilentGameSounds(),
   });
 
   final SettingsController settings;
   /// Tela de jogo (padrão: o tabuleiro provisório).
   final BoardBuilder? boardBuilder;
+
+  /// Efeitos sonoros (já filtrados pela opção das configurações).
+  final GameSounds sounds;
 
   /// Progresso inicial (padrão: trilha vazia). Ainda só em memória: a
   /// persistência do progresso é uma etapa futura.
@@ -40,9 +45,15 @@ class _TrailFlowState extends State<TrailFlow> {
   late TrailProgress _progress = widget.initialProgress ?? TrailProgress.empty();
   bool _playing = false;
 
+  void _sfx(GameSound sound) {
+    // Falha de áudio não deve interromper o jogo.
+    widget.sounds.play(sound).catchError((Object _) {});
+  }
+
   Future<void> _play(int first) async {
     if (_playing) return;
     _playing = true;
+    _sfx(GameSound.tap);
     final navigator = Navigator.of(context);
     try {
       var level = first;
@@ -69,6 +80,7 @@ class _TrailFlowState extends State<TrailFlow> {
         if (!advances || next == null) return;
 
         await WidgetsBinding.instance.endOfFrame;
+        _sfx(GameSound.advance);
         await _trailKey.currentState?.advanceAvatar(next);
         if (!mounted) return;
         level = next;

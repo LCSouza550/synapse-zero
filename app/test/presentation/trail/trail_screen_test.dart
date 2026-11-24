@@ -4,6 +4,7 @@ import 'package:synapse_core/synapse_core.dart';
 import 'package:synapsezero/application/settings/avatars.dart';
 import 'package:synapsezero/application/trail/trail_progress.dart';
 import 'package:synapsezero/presentation/theme/app_theme.dart';
+import 'package:synapsezero/presentation/trail/avatar_token.dart';
 import 'package:synapsezero/presentation/trail/trail_screen.dart';
 
 final String _emoji = defaultAvatar.emoji;
@@ -35,7 +36,9 @@ void main() {
     expect(find.textContaining('0 / 180'), findsOneWidget);
     expect(find.textContaining('0 / $trailLength Nódulos'), findsOneWidget);
     expect(find.text('Primeiro Pulso'), findsOneWidget);
-    expect(find.text(_emoji), findsOneWidget);
+    // Uma ficha sobre o nível atual e o avatar no cabeçalho.
+    expect(find.byType(AvatarToken), findsOneWidget);
+    expect(find.text(_emoji), findsNWidgets(2));
   });
 
   testWidgets('tocar o nível atual chama o callback com o índice', (tester) async {
@@ -88,7 +91,7 @@ void main() {
     expect(find.text('Setor 12 • Ponto Zero'), findsWidgets);
     expect(find.textContaining('180 / 180'), findsOneWidget);
     // Trilha concluída: o avatar descansa no último nível.
-    expect(find.text(_emoji), findsOneWidget);
+    expect(find.byType(AvatarToken), findsOneWidget);
   });
 
   testWidgets('a trilha sobe: nível 1 abaixo do 2, setor 1 abaixo do setor 2', (tester) async {
@@ -120,10 +123,22 @@ void main() {
     await tester.pumpWidget(_app(progress, (_) {}));
     await tester.pumpAndSettle();
 
-    final avatar = tester.getCenter(find.text(_emoji));
+    final avatar = tester.getCenter(find.byType(AvatarToken));
     final level = tester.getCenter(find.text('3'));
     expect((avatar.dx - level.dx).abs(), lessThan(1));
     expect(avatar.dy, lessThan(level.dy));
+  });
+
+  testWidgets('tocar no avatar do cabeçalho abre as configurações', (tester) async {
+    var opened = 0;
+    await tester.pumpWidget(
+      _app(TrailProgress.empty(), (_) {}, onOpenSettings: () => opened++),
+    );
+    await tester.pumpAndSettle();
+
+    // O cabeçalho vem antes da trilha na árvore: o primeiro é o dele.
+    await tester.tap(find.text(_emoji).first);
+    expect(opened, 1);
   });
 
   testWidgets('a engrenagem abre as configurações', (tester) async {
@@ -154,7 +169,7 @@ void main() {
     update(() => progress = progress.withResult(2, stars: 3, score: 1));
     await tester.pumpAndSettle();
     // O progresso mudou, mas o avatar só sai do lugar quando mandado.
-    final before = tester.getCenter(find.text(_emoji));
+    final before = tester.getCenter(find.byType(AvatarToken));
     expect(
       (before.dx - tester.getCenter(find.text('3')).dx).abs(),
       lessThan(1),
@@ -164,12 +179,12 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
     // Durante a viagem há uma única ficha (a que se move).
-    expect(find.text(_emoji), findsOneWidget);
+    expect(find.byType(AvatarToken), findsOneWidget);
 
     await tester.pumpAndSettle();
     await done;
 
-    final avatar = tester.getCenter(find.text(_emoji));
+    final avatar = tester.getCenter(find.byType(AvatarToken));
     final level = tester.getCenter(find.text('4'));
     expect((avatar.dx - level.dx).abs(), lessThan(1));
     expect(avatar.dy, lessThan(level.dy));
@@ -184,6 +199,6 @@ void main() {
     await tester.pumpAndSettle();
 
     await key.currentState!.advanceAvatar(0);
-    expect(find.text(_emoji), findsOneWidget);
+    expect(find.byType(AvatarToken), findsOneWidget);
   });
 }

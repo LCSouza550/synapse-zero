@@ -9,6 +9,7 @@ import 'package:synapsezero/presentation/theme/app_colors.dart';
 import 'package:synapsezero/presentation/theme/app_typography.dart';
 import 'package:synapsezero/presentation/trail/avatar_token.dart';
 import 'package:synapsezero/presentation/trail/sector_section.dart';
+import 'package:synapsezero/presentation/trail/trail_map.dart';
 import 'package:synapsezero/presentation/trail/trail_node.dart';
 import 'package:synapsezero/presentation/trail/trail_summary.dart';
 
@@ -60,8 +61,16 @@ class TrailScreenState extends State<TrailScreen>
   late int _avatarLevel = widget.progress.focusIndex;
 
   bool _traveling = false;
-  Offset _from = Offset.zero;
-  Offset _to = Offset.zero;
+
+  /// Nível de onde o avatar parte na viagem em curso.
+  int _travelFrom = 0;
+
+  /// Verdadeiro se a viagem segue o tracejado (níveis vizinhos do mesmo setor).
+  bool _onRoute = false;
+
+  /// Centro da ficha do avatar, em coordenadas do conteúdo, para o ponto [u]
+  /// (0 a 1, já com a curva aplicada) da viagem em curso.
+  Offset Function(double u) _centerAt = (u) => Offset.zero;
 
   @override
   void initState() {
@@ -77,20 +86,52 @@ class TrailScreenState extends State<TrailScreen>
   }
 
   /// Anima o avatar do nível atual até [level], acompanhando-o com a rolagem.
-  /// Completa quando o avatar chega.
+  /// Quando os níveis são vizinhos no mesmo setor, o avatar anda sobre o
+  /// tracejado e o acende ao passar; os dois chegam juntos. Completa quando
+  /// o avatar chega.
   Future<void> advanceAvatar(int level) async {
     if (!mounted || _traveling || level == _avatarLevel) return;
-    final from = _tokenSpot(_avatarLevel);
-    final to = _tokenSpot(level);
-    if (from == null || to == null) {
+    final from = _avatarLevel;
+    final spotFrom = _tokenSpot(from);
+    final spotTo = _tokenSpot(level);
+    if (spotFrom == null || spotTo == null) {
       setState(() => _avatarLevel = level);
       _scrollToLevel(level);
       return;
     }
+    const half = AvatarToken.size / 2;
+    final centerFrom = spotFrom + const Offset(half, half);
+    final centerTo = spotTo + const Offset(half, half);
+    final onRoute = level == from + 1 && level % levelsPerSector != 0;
+
+    if (onRoute) {
+      // Mesmo desenho do tracejado: curva entre os centros dos anéis.
+      final dFrom = _hover + TrailMap.ringCenter(from % levelsPerSector);
+      final dTo = _hover + TrailMap.ringCenter(level % levelsPerSector);
+      final ringFrom = centerFrom + Offset(0, dFrom);
+      final ringTo = centerTo + Offset(0, dTo);
+      final mid = (ringFrom.dy + ringTo.dy) / 2;
+      final route = Path()
+        ..moveTo(ringFrom.dx, ringFrom.dy)
+        ..cubicTo(ringFrom.dx, mid, ringTo.dx, mid, ringTo.dx, ringTo.dy);
+      final metric = route.computeMetrics().first;
+      _centerAt = (u) {
+        final point = metric.getTangentForOffset(metric.length * u)!.position;
+        // Parte pairando sobre o nó, desce para a trilha e volta a pairar.
+        final hover = dFrom + (dTo - dFrom) * u;
+        final lift = hover * (1 - 0.85 * math.sin(math.pi * u));
+        return point - Offset(0, lift);
+      };
+    } else {
+      _centerAt = (u) =>
+          Offset.lerp(centerFrom, centerTo, u)! -
+          Offset(0, math.sin(math.pi * u) * 14);
+    }
+
     setState(() {
       _traveling = true;
-      _from = from;
-      _to = to;
+      _travelFrom = from;
+      _onRoute = onRoute;
     });
     _scrollToLevel(level, animated: true);
     try {
@@ -102,8 +143,12 @@ class TrailScreenState extends State<TrailScreen>
     setState(() {
       _avatarLevel = level;
       _traveling = false;
+      _onRoute = false;
     });
   }
+
+  /// Distância do centro da ficha do avatar parado até o topo do anel.
+  static const double _hover = TrailNode.avatarLift - AvatarToken.size / 2;
 
   /// Canto superior esquerdo da ficha do avatar sobre o nível [level], em
   /// coordenadas do conteúdo rolável (não mudam ao rolar).
@@ -150,7 +195,10 @@ class TrailScreenState extends State<TrailScreen>
                   children: [
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-                      child: _Header(onOpenSettings: widget.onOpenSettings),
+                      child: _Header(
+                        avatar: widget.avatar,
+                        onOpenSettings: widget.onOpenSettings,
+                      ),
                     ),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
@@ -180,6 +228,10 @@ class TrailScreenState extends State<TrailScreen>
                                       avatar: widget.avatar,
                                       avatarAt:
                                           _traveling ? null : _avatarLevel,
+                                      travel: _traveling && _onRoute
+                                          ? _travel
+                                          : null,
+                                      travelFrom: _travelFrom,
                                     ),
                                   ),
                               ],
@@ -188,14 +240,12 @@ class TrailScreenState extends State<TrailScreen>
                               AnimatedBuilder(
                                 animation: _travel,
                                 builder: (context, child) {
-                                  final t =
-                                      Curves.easeInOutCubic.transform(_travel.value);
-                                  final spot = Offset.lerp(_from, _to, t)!;
-                                  // Um pequeno salto durante a viagem.
-                                  final hop = math.sin(math.pi * t) * 18;
+                                  final u = TrailMap.travelCurve
+                                      .transform(_travel.value);
+                                  final c = _centerAt(u);
                                   return Positioned(
-                                    left: spot.dx,
-                                    top: spot.dy - hop,
+                                    left: c.dx - AvatarToken.size / 2,
+                                    top: c.dy - AvatarToken.size / 2,
                                     child: child!,
                                   );
                                 },
@@ -217,8 +267,9 @@ class TrailScreenState extends State<TrailScreen>
 }
 
 class _Header extends StatelessWidget {
-  const _Header({this.onOpenSettings});
+  const _Header({required this.avatar, this.onOpenSettings});
 
+  final Avatar avatar;
   final VoidCallback? onOpenSettings;
 
   @override
@@ -227,8 +278,10 @@ class _Header extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
+            _HeaderAvatar(avatar: avatar, onTap: onOpenSettings),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -252,6 +305,45 @@ class _Header extends StatelessWidget {
         const SizedBox(height: 4),
         const _ModeTabs(),
       ],
+    );
+  }
+}
+
+/// Avatar do jogador no cabeçalho. Tocar abre as configurações, onde ele é
+/// trocado.
+class _HeaderAvatar extends StatelessWidget {
+  const _HeaderAvatar({required this.avatar, this.onTap});
+
+  final Avatar avatar;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: 'Seu avatar, ${avatar.label}. Abrir configurações',
+      child: ExcludeSemantics(
+        child: GestureDetector(
+          onTap: onTap,
+          child: Container(
+            width: 48,
+            height: 48,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.plate,
+              border: Border.all(color: AppColors.alfa, width: 2),
+              boxShadow: const [
+                BoxShadow(color: AppColors.alfaGlow, blurRadius: 10),
+              ],
+            ),
+            child: Text(
+              avatar.emoji,
+              style: const TextStyle(fontSize: 24, height: 1),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

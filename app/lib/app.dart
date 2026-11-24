@@ -1,6 +1,8 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:synapsezero/application/audio/asset_game_sounds.dart';
 import 'package:synapsezero/application/audio/asset_splash_audio.dart';
 import 'package:synapsezero/application/audio/asset_theme_music.dart';
+import 'package:synapsezero/application/audio/game_sounds.dart';
 import 'package:synapsezero/application/audio/splash_audio.dart';
 import 'package:synapsezero/application/audio/theme_music.dart';
 import 'package:synapsezero/application/audio/theme_music_controller.dart';
@@ -15,6 +17,7 @@ class SynapseZeroApp extends StatelessWidget {
     required this.settings,
     this.splashAudio,
     this.themeMusic,
+    this.gameSounds,
     this.boardBuilder,
   });
 
@@ -23,6 +26,7 @@ class SynapseZeroApp extends StatelessWidget {
   /// Áudios injetáveis (testes usam versões mudas). Padrão: os do aplicativo.
   final SplashAudio? splashAudio;
   final ThemeMusic? themeMusic;
+  final GameSounds? gameSounds;
 
   /// Tela de jogo injetável (padrão: o tabuleiro provisório).
   final BoardBuilder? boardBuilder;
@@ -37,6 +41,7 @@ class SynapseZeroApp extends StatelessWidget {
         settings: settings,
         splashAudio: splashAudio,
         themeMusic: themeMusic,
+        gameSounds: gameSounds,
         boardBuilder: boardBuilder,
       ),
     );
@@ -48,12 +53,14 @@ class _Root extends StatefulWidget {
     required this.settings,
     this.splashAudio,
     this.themeMusic,
+    this.gameSounds,
     this.boardBuilder,
   });
 
   final SettingsController settings;
   final SplashAudio? splashAudio;
   final ThemeMusic? themeMusic;
+  final GameSounds? gameSounds;
   final BoardBuilder? boardBuilder;
 
   @override
@@ -67,6 +74,12 @@ class _RootState extends State<_Root> with WidgetsBindingObserver {
   /// widget, que o libera.
   late final SplashAudio _splashAudio = GatedSplashAudio(
     inner: widget.splashAudio ?? AssetSplashAudio(),
+    isEnabled: () => widget.settings.soundEffects,
+  );
+
+  /// Efeitos do jogo: também só tocam com "efeitos sonoros" ligado.
+  late final GameSounds _sounds = GatedGameSounds(
+    inner: widget.gameSounds ?? AssetGameSounds(),
     isEnabled: () => widget.settings.soundEffects,
   );
 
@@ -93,6 +106,7 @@ class _RootState extends State<_Root> with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     _music.dispose();
     _splashAudio.dispose();
+    _sounds.dispose();
     super.dispose();
   }
 
@@ -109,6 +123,7 @@ class _RootState extends State<_Root> with WidgetsBindingObserver {
           ? TrailFlow(
               key: const ValueKey('trail'),
               settings: widget.settings,
+              sounds: _sounds,
               boardBuilder: widget.boardBuilder,
             )
           : SplashScreen(

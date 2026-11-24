@@ -1,12 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:synapsezero/application/settings/avatars.dart';
+import 'package:synapsezero/application/audio/game_sounds.dart';
 import 'package:synapsezero/application/settings/player_account.dart';
 import 'package:synapsezero/application/settings/settings_controller.dart';
 import 'package:synapsezero/application/settings/settings_store.dart';
 import 'package:synapsezero/application/trail/level_result.dart';
 import 'package:synapsezero/application/trail/trail_progress.dart';
 import 'package:synapsezero/presentation/theme/app_theme.dart';
+import 'package:synapsezero/presentation/trail/avatar_token.dart';
 import 'package:synapsezero/presentation/trail/trail_flow.dart';
 
 /// Tabuleiro de mentira: "Vencer" devolve 2 estrelas; "Sair" não devolve nada.
@@ -30,6 +31,16 @@ Widget _board(BuildContext context, int level) {
   );
 }
 
+class _RecordingSounds implements GameSounds {
+  final List<GameSound> played = [];
+
+  @override
+  Future<void> play(GameSound sound) async => played.add(sound);
+
+  @override
+  Future<void> dispose() async {}
+}
+
 SettingsController _settings() => SettingsController(
       store: InMemorySettingsStore(),
       accountService: const SimulatedAccountService(delay: Duration.zero),
@@ -39,6 +50,7 @@ Future<void> _pump(
   WidgetTester tester, {
   TrailProgress? progress,
   SettingsController? settings,
+  GameSounds sounds = const SilentGameSounds(),
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -47,13 +59,12 @@ Future<void> _pump(
         settings: settings ?? _settings(),
         boardBuilder: _board,
         initialProgress: progress,
+        sounds: sounds,
       ),
     ),
   );
   await tester.pumpAndSettle();
 }
-
-final String _emoji = defaultAvatar.emoji;
 
 void main() {
   testWidgets('vencer volta à trilha, o avatar anda e só então abre o próximo tabuleiro',
@@ -76,7 +87,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('TABULEIRO 1'), findsNothing);
     expect(find.textContaining('2 / 180'), findsOneWidget);
-    final avatar = tester.getCenter(find.text(_emoji));
+    final avatar = tester.getCenter(find.byType(AvatarToken));
     final level = tester.getCenter(find.text('2'));
     expect((avatar.dx - level.dx).abs(), lessThan(1));
   });
@@ -104,7 +115,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('TABULEIRO'), findsNothing);
-    final avatar = tester.getCenter(find.text(_emoji));
+    final avatar = tester.getCenter(find.byType(AvatarToken));
     final level = tester.getCenter(find.text('2'));
     expect((avatar.dx - level.dx).abs(), lessThan(1));
   });
@@ -134,7 +145,39 @@ void main() {
 
     await tester.tap(find.text('🧠'));
     await tester.pumpAndSettle();
-    // Uma ficha na janela e outra sobre o nível atual.
-    expect(find.text('🧠'), findsNWidgets(2));
+    // A ficha da trilha e o avatar do cabeçalho passam a ser o escolhido.
+    expect(
+      find.descendant(of: find.byType(AvatarToken), matching: find.text('🧠')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('toca efeito ao escolher o nível e ao avançar o avatar', (tester) async {
+    final sounds = _RecordingSounds();
+    await _pump(tester, sounds: sounds);
+    await tester.tap(find.text('1'));
+    await tester.pumpAndSettle();
+    expect(sounds.played, [GameSound.tap]);
+
+    await tester.tap(find.text('Vencer'));
+    await tester.pumpAndSettle();
+    expect(sounds.played, [GameSound.tap, GameSound.advance]);
+  });
+
+  testWidgets('refazer um nível concluído não toca o som de avanço', (tester) async {
+    final sounds = _RecordingSounds();
+    await _pump(
+      tester,
+      progress: TrailProgress.fromLists(stars: [3]),
+      sounds: sounds,
+    );
+    await tester.ensureVisible(find.text('1'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('1'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Vencer'));
+    await tester.pumpAndSettle();
+
+    expect(sounds.played, [GameSound.tap]);
   });
 }
