@@ -88,13 +88,16 @@ beam_end = BEAM_END * TOTAL
 exit_time = (APPROACH_START + entry_at * move_span + SPIN_SPAN + (exit_at - entry_at) * move_span) * TOTAL
 print(f"contato {contact:.3f}s | conexão {connected:.3f}s | saída do conector {exit_time:.3f}s | fim do feixe {beam_end:.3f}s")
 
-# 1) Feixe se aproxima: varredura ascendente até o contato.
-sweep(190, 540, beam_start, contact - beam_start, "sine", 0.07)
+# 1) Feixe parte (estalo curto) e se aproxima: varredura ascendente até o contato.
+# Frequências acima de ~500 Hz: o alto-falante do celular quase não reproduz o
+# que está abaixo de 300 Hz, e a abertura parecia só começar no contato.
+note(1320, beam_start, 0.08, "triangle", 0.10)
+sweep(560, 1120, beam_start, contact - beam_start, "sine", 0.10)
 
 # 2) Contato: toque seco; giro do conector: varredura que sobe (carga).
 note(330, contact, 0.2, "triangle", 0.12)
 note(495, contact, 0.2, "sine", 0.06)
-sweep(240, 700, contact, connected - contact, "triangle", 0.09)
+sweep(500, 1400, contact, connected - contact, "triangle", 0.09)
 
 # 3) Conexão: estalo + acorde + batida grave.
 note(1500, connected, 0.03, "square", 0.05)
